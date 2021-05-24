@@ -58,11 +58,11 @@ class DummyRPC implements KademliaRPC {
 public class Main {
     public static void testRouteTree() {
         DummyRPC rpc = new DummyRPC();
-        Host self = new Host("ip111", 0b111);
+        Host self = new Host("ip111", 0b111, 8000);
         KademliaClient selfClient = rpc.addHost(self);
-        rpc.addHost(new Host("ip000", 0b000));
-        rpc.addHost(new Host("ip010", 0b010));
-        rpc.addHost(new Host("ip110", 0b110));
+        rpc.addHost(new Host("ip000", 0b000, 8000));
+        rpc.addHost(new Host("ip010", 0b010, 8000));
+        rpc.addHost(new Host("ip110", 0b110, 8000));
 
         selfClient.put(0b111, new DataBlock(1));
         selfClient.put(0b011, new DataBlock(5));
@@ -70,7 +70,14 @@ public class Main {
         var r2 = selfClient.get(0b011);
     }
 
+    public static void testBucketrefreshing() {
+        Host self = new Host("ip111", 0b111, 8000);
+        Bucket myBucket = new Bucket(5,3, self);
+        myBucket.BucketRefreshing();
+    }
+
     public static void main(String[] args) {
         testRouteTree();
+//        testBucketrefreshing();
     }
 }
