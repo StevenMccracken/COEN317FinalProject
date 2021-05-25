@@ -13,4 +13,8 @@ interface KademliaRPC {
     void store(Host host, int key, DataBlock data);
 
     boolean ping(Host host);
+
+    //for test use only
+    boolean pingNode(Host host);
+    void findNode(KademliaClient client, Host host);
 }

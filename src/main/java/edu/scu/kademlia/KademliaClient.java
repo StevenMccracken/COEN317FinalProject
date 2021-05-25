@@ -162,6 +162,55 @@ public class KademliaClient {
         return (v >> id) & 1;
     }
 
+    public KademliaRPC getRPC(){
+        return rpc;
+    }
+    /**
+     * Find the closet bucket to put new node info
+     * Dealing with new node joining the network
+     * @param knownHost newHost, known node in the network and the joining node
+     */
+    public int findClosetBucketID(Host knownHost, Host newHost){
+        int bucketID = 0;
+//        String strKnown, strNew;
+//        strKnown = Integer.toString(knownHost.key);
+//        strNew = Integer.toString(newHost.key);
+//
+//        System.out.println(strKnown);
+//        System.out.println(strNew);
+//
+//        while(bucketID < strKnown.length()){
+//            if(strKnown.charAt(bucketID) != strNew.charAt(bucketID)){
+//                break;
+//            }
+//            bucketID++;
+//        }
+//        return bucketID;
+        for (int i = 0; i < bitLen; i++) {
+            int dir1 = getBit(knownHost.key, bitLen - i - 1);
+            int dir2 = getBit(newHost.key, bitLen - i - 1);
+            if(dir1 == dir2){
+                continue;
+            }
+            else{
+                bucketID = i;
+                break;
+            }
+        }
+        return bucketID;
+
+    }
+
+    /**
+     * For new nodes joining the network. The joining node must know a node in the network
+     * @param newHost,  known node in the network and the joining node
+     */
+    public void NodeJoin(Host newHost, KademliaRPC rpc) {
+        int bucketID = findClosetBucketID(self, newHost);
+        System.out.println("bucketID: " + bucketID);
+        self.buckets.get(bucketID).addNodeToBucket(newHost, rpc);
+    }
+
     @Data
     private static class RouteNode {
         Optional<Host> kbucket = Optional.empty(); // right now the bucket can only have 1 element. k=1 (I think)
