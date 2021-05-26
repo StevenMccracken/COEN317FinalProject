@@ -37,8 +37,6 @@ public class Host {
         }
     }
 
-
-
     public long getLastSeenTime(){
         return this.mostRecentSeen;
     }
@@ -46,33 +44,5 @@ public class Host {
     public ArrayList<Bucket> getBuckets(){
         return buckets;
     }
-
-//    /**
-//     * Find the closet bucket to put new node info
-//     * Dealing with new node joining the network
-//     * @param host known node in the network and the joining node
-//     */
-//    public int findClosetBucket(Host knownHost, Host newHost){
-//        int position = 0;
-//        String strKnown, strNew;
-//        strKnown = Integer.toBinaryString(knownHost.key);
-//        strNew = Integer.toBinaryString(newHost.key);
-//        while(position < strKnown.length()){
-//            if(strKnown.charAt(position) != strNew.charAt(position)){
-//                break;
-//            }
-//            position++;
-//        }
-//        return position - 1;
-//    }
-
-//    /**
-//     * For new nodes joining the network. The joining node must know a node in the network
-//     * @param host known node in the network and the joining node
-//     */
-//    public void NodeJoin(Host knownHost, Host newHost) {
-//        int position = findClosetBucket(knownHost, newHost);
-//        knownHost.buckets.get(position).addNodeToBucket(newHost);
-//    }
 
 }

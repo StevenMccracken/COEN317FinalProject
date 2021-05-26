@@ -1,6 +1,7 @@
 package edu.scu.kademlia;
 
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 
 public class Bucket {
     // k-bucket k size
@@ -103,20 +104,14 @@ public class Bucket {
      * update the network by refresh the k-buckets
      */
     public void BucketRefreshing(KademliaRPC rpc){
+        //step 1: rule out not respond hosts in the bucket
         System.out.println("start step1");
-        ArrayList<Host> copyNodesInBucket = new ArrayList<>(nodesInBucket);
-        for (Host curHost: copyNodesInBucket) {
-            //RPC ping curHost, if cur not reply, else keep cur (no action performed)
-            if(!rpc.pingNode(curHost)) {
+        System.out.println("step1: before nodesinbucket size: " + nodesInBucket.size()); //for test only
+        nodesInBucket.removeIf(curHost-> !rpc.pingNode(curHost));
+        System.out.println("step1: after nodesinbucket size: " + nodesInBucket.size()); //for test only
 
-                System.out.println("step1: before nodesinbucket size: "+nodesInBucket.size()); //for test only
-                nodesInBucket.remove(curHost);
-                System.out.println("step1: after nodesinbucket size: "+nodesInBucket.size()); //for test only
-            }
-        }
-
-        System.out.println("start step2");
         //Step2: refill nodes(from backup) to the bucket
+        System.out.println("start step2");
         while(nodesInBucket.size() < ksize && !nodesBackup.isEmpty()){
             //check this cur host is still alive. if cur is alive, add cur to bucket. Otherwise continue.
             Host curBackup = nodesBackup.get(0);

@@ -65,7 +65,7 @@ class DummyRPC implements KademliaRPC {
             return;
         }
 
-        client.NodeJoin(host, this);
+        client.NodeJoin(host);
     }
 
     //dummy function for test purpose
@@ -84,6 +84,7 @@ class DummyRPC implements KademliaRPC {
 
 public class Main {
     public static void testRouteTree() {
+        System.out.println("TEST ROUTE TREE");
         DummyRPC rpc = new DummyRPC();
         Host self = new Host("ip111", 0b111, 8000, 2);
         KademliaClient selfClient = rpc.addHost(self);
@@ -98,6 +99,7 @@ public class Main {
     }
 
     public static void testNewNodeJoining() {
+        System.out.println("TEST NEW NODE JOINING");
         DummyRPC rpc = new DummyRPC();
         Host self = new Host("ip111", 0b111, 8000, 2);
         KademliaClient selfClient = rpc.addHost(self);
@@ -117,6 +119,7 @@ public class Main {
 
     }
     public static void testBucketrefreshing() {
+        System.out.println("TEST BUCKET REFRESHING");
         DummyRPC rpc = new DummyRPC();
         Host self = new Host("ip111", 0b111, 8000, 2);
         KademliaClient selfClient = rpc.addHost(self);
@@ -142,6 +145,7 @@ public class Main {
 
 
     public static void periodicallyBucketReshing() {
+        System.out.println("TEST PERIODICALLY BUCKET REFRESHING");
         //initial local host
         Host self = new Host("ip111", 0b111, 8000, 2);
         DummyRPC rpc = new DummyRPC();
@@ -165,8 +169,6 @@ public class Main {
             }
         }
     }
-
-
 
 
     public static void main(String[] args) {
