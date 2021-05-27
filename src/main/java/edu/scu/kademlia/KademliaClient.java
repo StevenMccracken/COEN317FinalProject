@@ -3,6 +3,7 @@ package edu.scu.kademlia;
 import lombok.Data;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class KademliaClient {
 
@@ -24,7 +25,10 @@ public class KademliaClient {
     // The local data we are saving
     private Map<Integer, DataBlock> dataStore = new HashMap<>();
 
-    public KademliaClient(int bitLen, Host self, KademliaRPC rpc) {
+    // The size of each bucket
+    private int ksize;
+
+    public KademliaClient(int bitLen, Host self, KademliaRPC rpc, int ksize) {
         this.bitLen = bitLen;
         this.self = self;
         this.rpc = rpc;
@@ -46,7 +50,9 @@ public class KademliaClient {
             currNode = nextNode;
         }
 
-        currNode.setKbucket(Optional.of(self));
+        Bucket kbucket = new Bucket(ksize);
+        kbucket.addNodeToBucket(self, null);
+        currNode.setKbucket(Optional.of(kbucket));
     }
 
     /**
@@ -55,20 +61,26 @@ public class KademliaClient {
      */
     public void addHost(Host host) {
         RouteNode targetNode = getClosestBucket(host.key);
-        Optional<Host> nodeHost = targetNode.getKbucket();
+        Optional<Bucket> nodeHost = targetNode.getKbucket();
 
         if (!nodeHost.isPresent()) {
-            targetNode.setKbucket(Optional.of(host));
+            Bucket kbucket = new Bucket(ksize);
+            kbucket.addNodeToBucket(host, null);
+            targetNode.setKbucket(Optional.of(kbucket));
             knownHosts.add(host);
             return;
         }
 
         // if there is no host here or the current host is greater than this host
-        if (nodeHost.get().key > host.key) {
-            knownHosts.remove(nodeHost.get());
-            targetNode.setKbucket(Optional.of(host));
-            knownHosts.add(host);
-        }
+        Bucket kbucket = nodeHost.get();
+        kbucket.addNodeToBucket(host, null);
+        knownHosts.add(host); // there needs to be a way to collect all these hosts for search from the buckets.
+    }
+
+    // Not yet implemented but should call find host over and over again.
+    public List<Host> nodeLookup(int key) {
+        // should have k elements
+        return List.of();
     }
 
     /**
@@ -92,12 +104,12 @@ public class KademliaClient {
             }
 
             // if there is no host and no data, then the data cannot be found
-            if(!result.getNextHost().isPresent()) {
+            if(result.getNextHost().isEmpty()) {
                 return Optional.empty();
             }
 
             checkedHosts.add(target);
-            target = result.getNextHost().get();
+            target = result.getNextHost().get(0);
         }
 
         return Optional.empty();
@@ -119,19 +131,20 @@ public class KademliaClient {
     }
 
     public Host getClosestHost(int key) {
-        Host best = self;
-        // pretend this is an unsigned
-        long bestDist = Integer.MAX_VALUE * 2L;
-        for(Host host : knownHosts) {
-            long dist = host.key ^ key;
-            dist += Integer.MAX_VALUE;
-            if (dist < bestDist) {
-                best = host;
-                bestDist = dist;
-            }
-        }
+        return getClosestHosts(key, 1).get(0);
+    }
 
-        return best;
+    public List<Host> getClosestHosts(int key, int count) {
+        return knownHosts.stream()
+                .sorted((host1, host2) -> -((int) getDist(host1, host2)))
+                .limit(count)
+                .collect(Collectors.toList());
+    }
+
+    private long getDist(Host host1, Host host2) {
+        long dist = host1.key ^ host2.key;
+        dist += Integer.MAX_VALUE;
+        return dist;
     }
 
     public RouteNode getClosestBucket(int key) {
@@ -189,14 +202,15 @@ public class KademliaClient {
      * @param newHost,  the joining node
      */
     public void NodeJoin(Host newHost) {
-        int bucketID = findClosestBucketID(self, newHost);
-        System.out.println("bucketID: " + bucketID);
-        self.buckets.get(bucketID).addNodeToBucket(newHost, rpc);
+        addHost(newHost);
+//        int bucketID = findClosestBucketID(self, newHost);
+//        System.out.println("bucketID: " + bucketID);
+//        self.buckets.get(bucketID).addNodeToBucket(newHost, rpc);
     }
 
     @Data
     private static class RouteNode {
-        Optional<Host> kbucket = Optional.empty(); // right now the bucket can only have 1 element. k=1 (I think)
+        Optional<Bucket> kbucket = Optional.empty(); // right now the bucket can only have 1 element. k=1 (I think)
         Optional<RouteNode> left = Optional.empty(); // 0 branch
         Optional<RouteNode> right = Optional.empty(); // 1 branch
     }

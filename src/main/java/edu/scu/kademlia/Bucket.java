@@ -7,26 +7,14 @@ public class Bucket {
     // k-bucket k size
     private int ksize;
 
-    // The bucket id
-    private int bucketID;
-
-    // The k-bucket associated host
-    private Host localHost;
-
     private ArrayList<Host> nodesInBucket;
     private ArrayList<Host> nodesBackup;
 
 
-    public Bucket(int ksize, int bucketID, Host localNode){
+    public Bucket(int ksize){
         this.ksize = ksize;
-        this.bucketID = bucketID;
-        this.localHost = localNode;
         this.nodesInBucket = new ArrayList<Host>(ksize);
         this.nodesBackup = new ArrayList<Host>();
-    }
-
-    public int getBucketID(){
-        return this.bucketID;
     }
 
     /**
@@ -81,7 +69,7 @@ public class Bucket {
         else{
             Host pingNode = getLeastRecentSeen(nodesInBucket);
             //Case 3_1:
-            if(rpc.pingNode(node) == false) {
+            if(rpc.ping(node) == false) {
                 System.out.println("case 3_1: before size: "+nodesInBucket.size()); //for test only
                 nodesInBucket.remove(pingNode);
                 System.out.println("case 3_1: after remove size: "+nodesInBucket.size()); //for test only
@@ -107,7 +95,7 @@ public class Bucket {
         //step 1: rule out not respond hosts in the bucket
         System.out.println("start step1");
         System.out.println("step1: before nodesinbucket size: " + nodesInBucket.size()); //for test only
-        nodesInBucket.removeIf(curHost-> !rpc.pingNode(curHost));
+        nodesInBucket.removeIf(curHost-> !rpc.ping(curHost));
         System.out.println("step1: after nodesinbucket size: " + nodesInBucket.size()); //for test only
 
         //Step2: refill nodes(from backup) to the bucket
@@ -116,7 +104,7 @@ public class Bucket {
             //check this cur host is still alive. if cur is alive, add cur to bucket. Otherwise continue.
             Host curBackup = nodesBackup.get(0);
 
-            if(rpc.pingNode(curBackup)){
+            if(rpc.ping(curBackup)){
 
                 System.out.println("step2 before nodebackup size: "+nodesBackup.size()); //for test only
                 nodesBackup.remove(curBackup);

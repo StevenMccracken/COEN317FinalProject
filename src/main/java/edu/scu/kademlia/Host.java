@@ -33,7 +33,7 @@ public class Host {
 
         //initial bucket for each range
         for (int i = 0; i < bitLen; i++) {
-            buckets.add(new Bucket(ksize, i, this));
+            buckets.add(new Bucket(ksize));
         }
     }
 

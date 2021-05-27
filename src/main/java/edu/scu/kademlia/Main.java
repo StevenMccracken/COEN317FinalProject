@@ -1,18 +1,20 @@
 package edu.scu.kademlia;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import lombok.RequiredArgsConstructor;
+
+import java.util.*;
 
 // This is just a sample, it pretends to be several hosts
+@RequiredArgsConstructor
 class DummyRPC implements KademliaRPC {
 
-    Map<Host, KademliaClient> dummyHosts = new HashMap<>();
+    final Map<Host, KademliaClient> dummyHosts = new HashMap<>();
+    final int ksize;
 
     // This method is just for the dummy class to set up its hosts
     public KademliaClient addHost(Host host) {
-        KademliaClient client = new KademliaClient(3, host, this);
+
+        KademliaClient client = new KademliaClient(3, host, this, 2);
         dummyHosts.put(host, client);
 
         // all trees have all nodes if needed
@@ -27,9 +29,9 @@ class DummyRPC implements KademliaRPC {
     }
 
     @Override
-    public Host findHost(Host host, int key) {
+    public List<Host> findNode(Host host, int key) {
         KademliaClient client = dummyHosts.get(host);
-        return client.getClosestHost(key);
+        return client.nodeLookup(key);
     }
 
     @Override
@@ -41,7 +43,7 @@ class DummyRPC implements KademliaRPC {
             //noinspection OptionalGetWithoutIsPresent
             return new HostSearchResult(client.get(key).get());
         }
-        return new HostSearchResult(client.getClosestHost(key));
+        return new HostSearchResult(client.getClosestHosts(key, ksize));
     }
 
     @Override
@@ -51,26 +53,9 @@ class DummyRPC implements KademliaRPC {
         client.put(key, data);
     }
 
-    @Override
-    public boolean ping(Host host) {
-        return dummyHosts.containsKey(host);
-    }
-
-    //dummy function for node join
-    @Override
-    public void findNode(KademliaClient client, Host host) {
-        //
-        if(dummyHosts.containsKey(host)){
-            System.out.println("[dummy Network findNode] host already exist in the network");
-            return;
-        }
-
-        client.NodeJoin(host);
-    }
-
     //dummy function for test purpose
     @Override
-    public boolean pingNode(Host host) {
+    public boolean ping(Host host) {
         Random rand = new Random();
         int int_random = rand.nextInt(2);
         System.out.println("[dummy Network pingNode] random int: " + int_random);
@@ -83,9 +68,11 @@ class DummyRPC implements KademliaRPC {
 }
 
 public class Main {
+    final static int KSIZE = 2;
+
     public static void testRouteTree() {
         System.out.println("TEST ROUTE TREE");
-        DummyRPC rpc = new DummyRPC();
+        DummyRPC rpc = new DummyRPC(KSIZE);
         Host self = new Host("ip111", 0b111, 8000, 2);
         KademliaClient selfClient = rpc.addHost(self);
         rpc.addHost(new Host("ip000", 0b000, 8000, 2));
@@ -100,7 +87,7 @@ public class Main {
 
     public static void testNewNodeJoining() {
         System.out.println("TEST NEW NODE JOINING");
-        DummyRPC rpc = new DummyRPC();
+        DummyRPC rpc = new DummyRPC(KSIZE);
         Host self = new Host("ip111", 0b111, 8000, 2);
         KademliaClient selfClient = rpc.addHost(self);
         Host newHost1 = new Host("ip000", 0b000, 8000, 2);
@@ -108,19 +95,19 @@ public class Main {
         Host newHost3 = new Host("ip011", 0b011, 8000, 2);
 
         //test for exist node joining
-        rpc.findNode(selfClient, newHost1);
-        rpc.findNode(selfClient, newHost1);
+        rpc.findNode(self, newHost1.key);
+        rpc.findNode(self, newHost1.key);
 
         //test for new node join when bucket not full
-        rpc.findNode(selfClient, newHost2);
+        rpc.findNode(self, newHost2.key);
 
         //test for new node join when bucket full
-        rpc.findNode(selfClient, newHost3);
+        rpc.findNode(self, newHost3.key);
 
     }
     public static void testBucketrefreshing() {
         System.out.println("TEST BUCKET REFRESHING");
-        DummyRPC rpc = new DummyRPC();
+        DummyRPC rpc = new DummyRPC(KSIZE);
         Host self = new Host("ip111", 0b111, 8000, 2);
         KademliaClient selfClient = rpc.addHost(self);
         Host newHost1 = new Host("ip000", 0b000, 8000, 2);
@@ -129,16 +116,16 @@ public class Main {
         Host newHost4 = new Host("ip011", 0b010, 8000, 2);
 
         //nodes joining the network
-        rpc.findNode(selfClient, newHost1);
-        rpc.findNode(selfClient, newHost2);
-        rpc.findNode(selfClient, newHost3);
-        rpc.findNode(selfClient, newHost4);
+        rpc.findNode(self, newHost1.key);
+        rpc.findNode(self, newHost2.key);
+        rpc.findNode(self, newHost3.key);
+        rpc.findNode(self, newHost4.key);
 
         //test for bucket refreshing
         System.out.println("start refreshing");
         ArrayList<Bucket> buckets = self.getBuckets();
         for(Bucket b: buckets){
-            System.out.println("bucketID: "+ b.getBucketID());
+//            System.out.println("bucketID: "+ b.getBucketID());
             b.BucketRefreshing(rpc);
         }
     }
@@ -148,7 +135,7 @@ public class Main {
         System.out.println("TEST PERIODICALLY BUCKET REFRESHING");
         //initial local host
         Host self = new Host("ip111", 0b111, 8000, 2);
-        DummyRPC rpc = new DummyRPC();
+        DummyRPC rpc = new DummyRPC(KSIZE);
 
         //start time counting
         long start = System.currentTimeMillis();
