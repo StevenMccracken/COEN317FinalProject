@@ -73,6 +73,12 @@ class DummyRPC implements KademliaRPC {
 public class Main {
     final static int KSIZE = 1;
 
+    public static void ASSERT(boolean bool) {
+        if (!bool) {
+            throw new AssertionError("Condition was false!");
+        }
+    }
+
     public static void testRouteTree() {
         System.out.println("TEST ROUTE TREE");
         DummyRPC rpc = new DummyRPC(KSIZE);
@@ -86,58 +92,61 @@ public class Main {
         selfClient.put(0b011, new DataBlock(5));
         var r1 = selfClient.get(0b111);
         var r2 = selfClient.get(0b011);
+
+        ASSERT(r1.get().sampleValue == 1);
+        ASSERT(r2.get().sampleValue == 5);
     }
 
-//    public static void testNewNodeJoining() {
-//        System.out.println("TEST NEW NODE JOINING");
-//        DummyRPC rpc = new DummyRPC(KSIZE);
-//        Host self = new Host("ip111", 0b111, 8000, 2);
-//        KademliaClient selfClient = rpc.addHost(self);
-//        Host newHost1 = new Host("ip000", 0b000, 8000, 2);
-//        Host newHost2 = new Host("ip001", 0b001, 8000, 2);
-//        Host newHost3 = new Host("ip011", 0b011, 8000, 2);
-//
-//        //test for exist node joining
-//        rpc.findNode(self, newHost1.key);
-//        rpc.findNode(self, newHost1.key);
-//
-//        //test for new node join when bucket not full
-//        rpc.findNode(self, newHost2.key);
-//
-//        //test for new node join when bucket full
-//        rpc.findNode(self, newHost3.key);
-//    }
+    public static void testNewNodeJoining() {
+        System.out.println("TEST NEW NODE JOINING");
+        DummyRPC rpc = new DummyRPC(KSIZE);
+        Host self = new Host("ip111", 0b111, 8000);
+        KademliaClient selfClient = rpc.addHost(self);
+        Host newHost1 = new Host("ip000", 0b000, 8000);
+        Host newHost2 = new Host("ip001", 0b001, 8000);
+        Host newHost3 = new Host("ip011", 0b011, 8000);
 
-//    public static void testBucketrefreshing() {
-//        System.out.println("TEST BUCKET REFRESHING");
-//        DummyRPC rpc = new DummyRPC(KSIZE);
-//        Host self = new Host("ip111", 0b111, 8000, 2);
-//        KademliaClient selfClient = rpc.addHost(self);
-//        Host newHost1 = new Host("ip000", 0b000, 8000, 2);
-//        Host newHost2 = new Host("ip001", 0b001, 8000, 2);
-//        Host newHost3 = new Host("ip011", 0b011, 8000, 2);
-//        Host newHost4 = new Host("ip011", 0b010, 8000, 2);
-//
-//        //nodes joining the network
-//        rpc.findNode(self, newHost1.key);
-//        rpc.findNode(self, newHost2.key);
-//        rpc.findNode(self, newHost3.key);
-//        rpc.findNode(self, newHost4.key);
-//
-//        //test for bucket refreshing
-//        System.out.println("start refreshing");
-//        ArrayList<Bucket> buckets = self.getBuckets();
-//        for(Bucket b: buckets){
-////            System.out.println("bucketID: "+ b.getBucketID());
-//            b.BucketRefreshing();
-//        }
-//    }
+        //test for exist node joining
+        rpc.findNode(self, newHost1.getKey());
+        rpc.findNode(self, newHost1.getKey());
+
+        //test for new node join when bucket not full
+        rpc.findNode(self, newHost2.getKey());
+
+        //test for new node join when bucket full
+        rpc.findNode(self, newHost3.getKey());
+    }
+
+    public static void testBucketrefreshing() {
+        System.out.println("TEST BUCKET REFRESHING");
+        DummyRPC rpc = new DummyRPC(KSIZE);
+        Host self = new Host("ip111", 0b111, 8000);
+        KademliaClient selfClient = rpc.addHost(self);
+        Host newHost1 = new Host("ip000", 0b000, 8000);
+        Host newHost2 = new Host("ip001", 0b001, 8000);
+        Host newHost3 = new Host("ip011", 0b011, 8000);
+        Host newHost4 = new Host("ip011", 0b010, 8000);
+
+        //nodes joining the network
+        rpc.findNode(self, newHost1.getKey());
+        rpc.findNode(self, newHost2.getKey());
+        rpc.findNode(self, newHost3.getKey());
+        rpc.findNode(self, newHost4.getKey());
+
+        //test for bucket refreshing
+        System.out.println("start refreshing");
+        Set<Bucket> buckets = selfClient.getAllBuckets();
+        for(Bucket b: buckets){
+//            System.out.println("bucketID: "+ b.getBucketID());
+            b.refreshBucket();
+        }
+    }
 //
 //
 //    public static void periodicallyBucketReshing() {
 //        System.out.println("TEST PERIODICALLY BUCKET REFRESHING");
 //        //initial local host
-//        Host self = new Host("ip111", 0b111, 8000, 2);
+//        Host self = new Host("ip111", 0b111, 8000);
 //        DummyRPC rpc = new DummyRPC(KSIZE);
 //
 //        //start time counting
@@ -150,7 +159,7 @@ public class Main {
 //            //1 hour = 3600 sec, do bucket refresh.
 //            //set to 1 for test only
 //            if (timeElapse > 1) {
-//                for (Bucket b : self.getBuckets()) {
+//                for (Bucket b : self.getAllBuckets()) {
 //                    b.BucketRefreshing();
 //                }
 //                break;//for test only
@@ -163,8 +172,8 @@ public class Main {
 
     public static void main(String[] args) {
         testRouteTree();
-//        testBucketrefreshing();
-//        testNewNodeJoining();
+        testBucketrefreshing();
+        testNewNodeJoining();
 //        periodicallyBucketReshing();
 
     }

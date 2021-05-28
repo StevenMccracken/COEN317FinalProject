@@ -3,6 +3,8 @@ package edu.scu.kademlia;
 import lombok.Getter;
 
 import java.util.ArrayList;
+import java.util.Objects;
+import java.util.UUID;
 
 public class Bucket {
     // k-bucket k size
@@ -10,10 +12,15 @@ public class Bucket {
 
     @Getter
     private ArrayList<Host> nodesInBucket;
-//    private ArrayList<Host> nodesBackup;
+
+        //    private ArrayList<Host> nodesBackup;
     private KademliaRPC rpc;
 
+    @Getter
+    private UUID uuid;
+
     public Bucket(int ksize, KademliaRPC rpc) {
+        this.uuid = UUID.randomUUID();
         this.ksize = ksize;
         this.nodesInBucket = new ArrayList<Host>(ksize);
 //        this.nodesBackup = new ArrayList<Host>();
@@ -122,6 +129,19 @@ public class Bucket {
 
     public boolean contains(Host host) {
         return nodesInBucket.contains(host);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Bucket bucket = (Bucket) o;
+        return Objects.equals(uuid, bucket.uuid);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(uuid);
     }
 
 }

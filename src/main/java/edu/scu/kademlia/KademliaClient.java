@@ -14,6 +14,7 @@ public class KademliaClient {
     private RouteNode kbucketTree;
 
     // The hosts in our address book. Points to hosts in the kbucket tree
+    @Getter
     private Set<Bucket> allBuckets = new HashSet<>();
 
     // Our host information
@@ -40,24 +41,6 @@ public class KademliaClient {
         kbucketTree.setKbucket(baseBucket);
         allBuckets.add(baseBucket);
         addHost(self);
-
-        // set up tree
-//        for (int i = 0; i < bitLen; i++) {
-//            int dir = getBit(self.getKey(), i);
-//            RouteNode nextNode = new RouteNode();
-//
-//            //check branch
-//            if(dir == 0) {
-//                currNode.setLeft(Optional.of(nextNode));
-//            } else {
-//                currNode.setRight(Optional.of(nextNode));
-//            }
-//            currNode = nextNode;
-//        }
-//
-//        Bucket kbucket = new Bucket(ksize, rpc);
-//        kbucket.addNodeToBucket(self);
-//        currNode.setKbucket(Optional.of(kbucket));
     }
 
     /**
@@ -233,39 +216,6 @@ public class KademliaClient {
 
     private int getBit(int v, int id) {
         return (v >> id) & 1;
-    }
-
-    /**
-     * Find the closet bucket to put new node info
-     * Dealing with new node joining the network
-     * @param self(local host) newHost, known node in the network and the joining node
-     */
-//    private int findClosestBucketID(Host self, Host newHost){
-//        int bucketID = 0;
-//        for (int i = 0; i < bitLen; i++) {
-//            int dir1 = getBit(self.key, bitLen - i - 1);
-//            int dir2 = getBit(newHost.key, bitLen - i - 1);
-//            if(dir1 == dir2){
-//                continue;
-//            }
-//            else{
-//                bucketID = i;
-//                break;
-//            }
-//        }
-//        return bucketID;
-//
-//    }
-
-    /**
-     * For new nodes joining the network. The joining node must know a node in the network
-     * @param newHost,  the joining node
-     */
-    public void NodeJoin(Host newHost) {
-        addHost(newHost);
-//        int bucketID = findClosestBucketID(self, newHost);
-//        System.out.println("bucketID: " + bucketID);
-//        self.buckets.get(bucketID).addNodeToBucket(newHost, rpc);
     }
 
     private static class RouteNode {
