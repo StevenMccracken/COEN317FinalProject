@@ -2,6 +2,10 @@ package edu.scu.kademlia;
 
 import lombok.RequiredArgsConstructor;
 
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.*;
 
 // This is just a sample, it pretends to be several hosts
@@ -29,14 +33,14 @@ class DummyRPC implements KademliaRPC {
     }
 
     @Override
-    public List<Host> findNode(Host host, int key) {
+    public List<Host> findNode(Host host, long key) {
         System.out.println("[Network] `findNode` to " + host.ip + " key " + key);
         KademliaClient client = dummyHosts.get(host);
         return client.nodeLookup(key);
     }
 
     @Override
-    public HostSearchResult findValue(Host host, int key) {
+    public HostSearchResult findValue(Host host, long key) {
         System.out.println("[Network] `findValue` to " + host.ip + " key " + key);
         KademliaClient client = dummyHosts.get(host);
 
@@ -48,7 +52,7 @@ class DummyRPC implements KademliaRPC {
     }
 
     @Override
-    public void store(Host host, int key, DataBlock data) {
+    public void store(Host host, long key, DataBlock data) {
         System.out.println("[Network] `store` to " + host.ip + " key " + key);
         KademliaClient client = dummyHosts.get(host);
         client.put(key, data);
@@ -169,12 +173,44 @@ public class Main {
 //        }
 //    }
 
+    private static void testRPC() {
+        try {
+            final InetAddress inetAddress = InetAddress.getLocalHost();
+            final String hostAddress = inetAddress.getHostAddress();
+            final String[] hostAddressParts = hostAddress.split("\\.");
+            long encodedHostAddress = 0;
+            for (int i = 0; i < 4; i++) {
+                encodedHostAddress += Integer.parseInt(hostAddressParts[i]) << (24 - (8 * i));
+            }
+
+            final Host host = new Host(hostAddress, encodedHostAddress, 8000);
+            final KademliaRPC rpc = new KademliaRPCImpl();
+            final KademliaClient client = new KademliaClient(32, host, rpc, KSIZE);
+            final Scanner input = new Scanner(System.in);
+
+            int val = 0;
+            while (val != 42) {
+                final int a = input.nextInt();
+                System.out.println(a);
+                client.put(encodedHostAddress, new DataBlock(a));
+            }
+
+            final Optional<DataBlock> r1 = client.get(encodedHostAddress);
+            final Optional<DataBlock> r2 = client.get(0b011); // How to get a real address here?
+
+            System.out.println(r1.get().sampleValue);
+            System.out.println(r2.get().sampleValue);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public static void main(String[] args) {
-        testRouteTree();
-        testBucketrefreshing();
-        testNewNodeJoining();
+//        testRouteTree();
+//        testBucketrefreshing();
+//        testNewNodeJoining();
 //        periodicallyBucketReshing();
-
+        testRPC();
     }
 }

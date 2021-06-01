@@ -1,31 +1,27 @@
 package edu.scu.kademlia;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
-
 public class Host {
     @Getter
-    String ip;
+    final String ip;
 
     @Getter
-    private int key;
+    private long key;
 
     // udp port
     @Getter
-    private int port;
+    final int port;
 
     //time stamp for each node, RPC can update this value
     @Getter @Setter
     private long mostRecentSeen;
 
-    public Host(String ip, int key, int port) {
+    public Host(String ip, long key, int port) {
         this.ip = ip;
         this.key = key;
         this.port = port;
-
         this.mostRecentSeen = System.currentTimeMillis();
     }
 }

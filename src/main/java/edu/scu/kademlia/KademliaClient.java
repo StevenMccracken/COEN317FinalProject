@@ -2,10 +2,15 @@ package edu.scu.kademlia;
 
 import lombok.Getter;
 
+import java.rmi.AlreadyBoundException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class KademliaClient {
+public class KademliaClient implements Client {
 
     // The bits of the key to use
     private int bitLen;
@@ -24,23 +29,34 @@ public class KademliaClient {
     private KademliaRPC rpc;
 
     // The local data we are saving
-    private Map<Integer, DataBlock> dataStore = new HashMap<>();
+    private Map<Long, DataBlock> dataStore = new HashMap<>();
 
     // The size of each bucket
     private int ksize;
+
+    private final RemoteClientImpl remoteClient;
 
     public KademliaClient(int bitLen, Host self, KademliaRPC rpc, int ksize) {
         this.bitLen = bitLen;
         this.self = self;
         this.rpc = rpc;
         this.ksize = ksize;
-//        this.knownHosts.add(self);
+        this.remoteClient = new RemoteClientImpl(this);
 
         kbucketTree = new RouteNode();
         Bucket baseBucket = new Bucket(ksize, rpc);
         kbucketTree.setKbucket(baseBucket);
         allBuckets.add(baseBucket);
         addHost(self);
+
+        try {
+            final RemoteClient stub = (RemoteClient) UnicastRemoteObject.exportObject(this.remoteClient, self.port);
+            final Registry registry = LocateRegistry.getRegistry();
+            System.out.println(self.ip);
+            registry.bind(self.ip, stub);
+        } catch (RemoteException | AlreadyBoundException exception) {
+            exception.printStackTrace();
+        }
     }
 
     /**
@@ -88,11 +104,9 @@ public class KademliaClient {
             Bucket kbucket = getClosestBucket(host.getKey());
             kbucket.addHost(host);
         }
-
     }
 
-    // Not yet implemented but should call find host over and over again.
-    public List<Host> nodeLookup(int key) {
+    public List<Host> nodeLookup(long key) {
         // Pretend that alpha = 1
         Host target = getClosestHost(key);
         Set<Host> checkedHosts = new HashSet<>();
@@ -122,7 +136,7 @@ public class KademliaClient {
      * @param key the key to search for
      * @return the datablock if one could be found
      */
-    public Optional<DataBlock> get(int key) {
+    public Optional<DataBlock> get(long key) {
         Optional<DataBlock> dataOp = Optional.ofNullable(dataStore.get(key));
         if(dataOp.isPresent()) {
             return dataOp;
@@ -148,7 +162,7 @@ public class KademliaClient {
         return Optional.empty();
     }
 
-    public void put(int key, DataBlock data) {
+    public void put(long key, DataBlock data) {
         Host target = nodeLookup(key).get(0); // this should get stored to k nodes but right now its just 1
         // if we should store it
         if (target.equals(this.self)) {
@@ -159,11 +173,11 @@ public class KademliaClient {
         rpc.store(target, key, data);
     }
 
-    public boolean hasData(int key) {
+    public boolean hasData(long key) {
         return dataStore.containsKey(key);
     }
 
-    public Host getClosestHost(int key) {
+    public Host getClosestHost(long key) {
         return getClosestHosts(key, 1).get(0);
     }
 
@@ -173,27 +187,27 @@ public class KademliaClient {
                 .collect(Collectors.toList());
     }
 
-    public List<Host> getClosestHosts(int key, int count) {
+    public List<Host> getClosestHosts(long key, int count) {
         return allHosts().stream()
                 .sorted((host1, host2) -> (int) (getDist(key, host1.getKey()) - getDist(key, host2.getKey())))
                 .limit(count)
                 .collect(Collectors.toList());
     }
 
-    private long getDist(int host1, int host2) {
+    private long getDist(long host1, long host2) {
         long dist = host1 ^ host2;
         dist += Integer.MAX_VALUE;
         return dist;
     }
 
-    public Bucket getClosestBucket(int key) {
+    public Bucket getClosestBucket(long key) {
         return getClosestNode(key).getKbucket().get();
     }
 
-    public RouteNode getClosestNode(int key) {
+    public RouteNode getClosestNode(long key) {
         RouteNode currNode = kbucketTree;
         for (int i = 0; i < bitLen; i++) {
-            int dir = getBit(key, bitLen - i - 1);
+            long dir = getBit(key, bitLen - i - 1);
             Optional<RouteNode> nextNode;
 
             // check branch
@@ -214,8 +228,31 @@ public class KademliaClient {
         return currNode;
     }
 
-    private int getBit(int v, int id) {
+    private long getBit(long v, int id) {
         return (v >> id) & 1;
+    }
+
+    @Override
+    public List<Host> findNode(long key) {
+        return this.nodeLookup(key);
+    }
+
+    @Override
+    public HostSearchResult findValue(long key) {
+        if (this.hasData(key)) {
+            return new HostSearchResult(this.get(key).get());
+        }
+        return new HostSearchResult(this.getClosestHosts(key, ksize));
+    }
+
+    @Override
+    public void store(long key, DataBlock data) {
+        this.put(key, data);
+    }
+
+    @Override
+    public boolean ping() {
+        return true;
     }
 
     private static class RouteNode {
