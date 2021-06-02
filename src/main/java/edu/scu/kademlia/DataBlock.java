@@ -7,6 +7,6 @@ import java.io.Serializable;
 
 @Data
 @AllArgsConstructor
-class DataBlock implements Serializable {
+public class DataBlock implements Serializable {
     int sampleValue;
 }

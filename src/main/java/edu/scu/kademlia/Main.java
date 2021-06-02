@@ -46,7 +46,7 @@ class DummyRPC implements KademliaRPC {
 
         if (client.hasData(key)) {
             //noinspection OptionalGetWithoutIsPresent
-            return new HostSearchResult(client.get(key).get());
+            return new HostSearchResult(client.get(key));
         }
         return new HostSearchResult(client.getClosestHosts(key, ksize));
     }
@@ -199,8 +199,6 @@ public class Main {
                 start = System.currentTimeMillis();
             }
         }
-            Optional<DataBlock> r1 = Client1.get(3030);
-            System.out.println(r1.get().sampleValue);
 
         } catch (UnknownHostException e) {
             e.printStackTrace();
@@ -284,30 +282,49 @@ public class Main {
         try {
             final InetAddress inetAddress = InetAddress.getLocalHost();
             final String hostAddress = inetAddress.getHostAddress();
+            System.out.println("Your IP address is: " + hostAddress);
             final String[] hostAddressParts = hostAddress.split("\\.");
-            final int port = 8000;
+
+            final Random random = new Random();
+            final int port = random.nextInt(65535) + 3000;
+            System.out.println("Your assigned port is: " + port);
             long encodedHostAddress = 0;
             for (int i = 0; i < 4; i++) {
                 encodedHostAddress |= Integer.parseInt(hostAddressParts[i]) << (48 - (8 * i));
             }
             encodedHostAddress |= port << 16;
+            System.out.println("Your local key is: " + encodedHostAddress);
+
             final Host host = new Host(hostAddress, encodedHostAddress, port);
             final KademliaRPC rpc = new KademliaRPCImpl();
             final KademliaClient client = new KademliaClient(32, host, rpc, KSIZE);
             final Scanner input = new Scanner(System.in);
 
-            int val = 0;
-            while (val != 42) {
-                final int a = input.nextInt();
-                System.out.println(a);
-                client.put(encodedHostAddress, new DataBlock(a));
+            while (true) {
+                System.out.println("Enter remote host IP: ");
+                final String remoteIP = input.nextLine();
+                final String[] remoteIPParts = hostAddress.split("\\.");
+                System.out.println("Enter remote host port: ");
+                final int remotePort = input.nextInt();
+                long remoteAddress = 0;
+                for (int i = 0; i < 4; i++) {
+                    remoteAddress |= Integer.parseInt(remoteIPParts[i]) << (48 - (8 * i));
+                }
+                remoteAddress |= remotePort << 16;
+                System.out.println("The remote host's key is: " + remoteAddress);
+                final Host remoteHost = new Host(remoteIP, remoteAddress, remotePort);
+                client.addHost(remoteHost);
+                rpc.ping(remoteHost);
+
+                System.out.println("Enter a value to write to remote host: ");
+                final int value = input.nextInt();
+                client.put(remoteAddress, new DataBlock(value));
+
+                System.out.println("Displaying any data written to this host in the meantime");
+                System.out.println(client.getDataStore());
+                System.out.println(client.allHosts());
+                System.out.flush();
             }
-
-            final Optional<DataBlock> r1 = client.get(encodedHostAddress);
-            final Optional<DataBlock> r2 = client.get(0b011); // How to get a real address here?
-
-            System.out.println(r1.get().sampleValue);
-            System.out.println(r2.get().sampleValue);
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
@@ -382,8 +399,6 @@ public class Main {
     }
 
     public static void main(String[] args) {
-//        periodicallyBucketRefreshing();
-//        periodicallyKeyValueRestoring();
-        testNodeJoining();
+    testRPC();
     }
 }

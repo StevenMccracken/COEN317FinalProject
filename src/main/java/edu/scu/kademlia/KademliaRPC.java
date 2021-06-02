@@ -2,7 +2,7 @@ package edu.scu.kademlia;
 
 import java.util.List;
 
-interface KademliaRPC {
+public interface KademliaRPC {
 
     /**
      * @param host The host to send this RPC to
