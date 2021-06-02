@@ -147,31 +147,65 @@ public class Main {
     }
 //
 //
-//    public static void periodicallyBucketReshing() {
-//        System.out.println("TEST PERIODICALLY BUCKET REFRESHING");
-//        //initial local host
-//        Host self = new Host("ip111", 0b111, 8000);
-//        DummyRPC rpc = new DummyRPC(KSIZE);
-//
-//        //start time counting
-//        long start = System.currentTimeMillis();
-//
-//        //update buckets once an hour. This can dealing with node leaving
-//        while (true) {
-//            //calculate in sec
-//            float timeElapse = (System.currentTimeMillis()- start) / 1000F;
-//            //1 hour = 3600 sec, do bucket refresh.
-//            //set to 1 for test only
-//            if (timeElapse > 1) {
-//                for (Bucket b : self.getAllBuckets()) {
-//                    b.BucketRefreshing();
-//                }
-//                break;//for test only
-//                //reset start
-////                start = System.currentTimeMillis();
-//            }
-//        }
-//    }
+    public static void periodicallyKeyValueRestoring() {
+        System.out.println("TEST PERIODICALLY key-value RESTORING");
+        //initial local host
+        Host self = new Host("ip111", 0b111, 8000);
+        DummyRPC rpc = new DummyRPC(KSIZE);
+        KademliaClient selfClient = new KademliaClient(3, self, rpc, KSIZE);
+
+        //start time counting
+        long start = System.currentTimeMillis();
+
+        while (true) {
+            //calculate in sec
+            float timeElapse = (System.currentTimeMillis() - start) / 1000F;
+            //24 hour = 86400 sec, do key-pair republishing.
+            if (timeElapse > 86400) {
+                for (long key : selfClient.getDataStore().keySet()) {
+                    List<Host> hosts = selfClient.nodeLookup(key);
+                    for(Host h: hosts){
+                        rpc.store(h, key, selfClient.getDataStore().get(key));
+                    }
+                }
+                start = System.currentTimeMillis();
+            }
+        }
+    }
+
+    public static void periodicallyBucketRefreshing() {
+        System.out.println("TEST PERIODICALLY BUCKET REFRESHING");
+        //initial local host
+        Host self = new Host("ip111", 0b111, 8000);
+        DummyRPC rpc = new DummyRPC(KSIZE);
+        int bitLen = 3;
+        KademliaClient selfClient = new KademliaClient(bitLen, self, rpc, KSIZE);
+
+        //start time counting
+        long start = System.currentTimeMillis();
+
+        while (true) {
+            //calculate in sec
+            float timeElapse = (System.currentTimeMillis() - start) / 1000F;
+            //1 hour = 3600 sec, do bucket refreshing.
+            if (timeElapse > 1) {
+                //remove left nodes
+                for(Bucket b: selfClient.getAllBuckets()){
+                    b.refreshBucket();
+                }
+                //populate newly joined hosts into buckets
+                for(int i=0; i< bitLen; i++){
+                    long lowerBound = (long) Math.pow(2, i);
+                    long upperBound = (long) Math.pow(2, i+1);
+                    long randomKey = lowerBound + (long) (Math.random() * (upperBound - lowerBound));
+//                    System.out.println(randomKey);
+                    rpc.findNode(self, randomKey);
+                }
+                start = System.currentTimeMillis();
+            }
+        }
+    }
+
 
     private static void testRPC() {
         try {
@@ -182,6 +216,8 @@ public class Main {
             for (int i = 0; i < 4; i++) {
                 encodedHostAddress += Integer.parseInt(hostAddressParts[i]) << (24 - (8 * i));
             }
+
+            System.out.println(hostAddress+" " + encodedHostAddress);
 
             final Host host = new Host(hostAddress, encodedHostAddress, 8000);
             final KademliaRPC rpc = new KademliaRPCImpl();
@@ -205,12 +241,67 @@ public class Main {
         }
     }
 
+    private static void testNodeJoining() {
+        try {
+            final InetAddress inetAddress = InetAddress.getLocalHost();
+            final String hostAddress = inetAddress.getHostAddress();
+            final String[] hostAddressParts = hostAddress.split("\\.");
+            long encodedHostAddress = 0;
+            for (int i = 0; i < 4; i++) {
+                encodedHostAddress += Integer.parseInt(hostAddressParts[i]) << (24 - (8 * i));
+            }
+
+//            final Host host = new Host(hostAddress, encodedHostAddress, 8000);
+            int port1 = 8000;
+            String key1 = Long.toBinaryString(encodedHostAddress+(long)port1);
+            System.out.println(key1);
+            int port2 = 8001;
+            String key2 = Long.toBinaryString(encodedHostAddress+(long)port2);
+            System.out.println(key2);
+
+            int port3 = 8002;
+            String key3 = Long.toBinaryString(encodedHostAddress+(long)port3);
+            System.out.println(key3);
+
+            Host self = new Host(hostAddress, encodedHostAddress+port1, port1);
+            Host newhost1 = new Host(hostAddress, encodedHostAddress+port2, port2);
+            Host newhost2 = new Host(hostAddress, encodedHostAddress+port3, port3);
+
+            KademliaRPC selfrpc = new KademliaRPCImpl();
+            KademliaRPC rpc1 = new KademliaRPCImpl();
+            KademliaRPC rpc2 = new KademliaRPCImpl();
+
+            KademliaClient selfClient = new KademliaClient(32, self, selfrpc, KSIZE);
+            KademliaClient newClient1 = new KademliaClient(32, newhost1, rpc1, KSIZE);
+            KademliaClient newClient2 = new KademliaClient(32, newhost2, rpc2, KSIZE);
+
+            //newhost 1 knows self client and it is added to the network
+            selfClient.addHost(newhost1);
+            System.out.println("self: "+ selfClient.allHosts()); //if 2 in it should be correct
+            //new client1 start self-lookup
+            rpc1.findNode(newhost1, newhost1.getKey());
+            System.out.println("new1: "+ newClient1.allHosts()); //if 2 in it should be correct
+
+//            rpc2.findNode(newhost2.getKey());
+//            System.out.println("new2: "+newClient2.allHosts());
+//
+//            System.out.println("self: "+selfClient.allHosts());
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void main(String[] args) {
 //        testRouteTree();
 //        testBucketrefreshing();
 //        testNewNodeJoining();
+
 //        periodicallyBucketReshing();
-        testRPC();
+//        periodicallyKeyValueRestoring();
+//        periodicallyBucketRefreshing();
+        testNodeJoining();
+//        testRPC();
     }
 }

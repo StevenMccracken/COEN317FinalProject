@@ -29,6 +29,7 @@ public class KademliaClient implements Client {
     private KademliaRPC rpc;
 
     // The local data we are saving
+    @Getter
     private Map<Long, DataBlock> dataStore = new HashMap<>();
 
     // The size of each bucket
