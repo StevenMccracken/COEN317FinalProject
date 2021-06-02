@@ -285,9 +285,9 @@ public class Main {
             System.out.println("Your IP address is: " + hostAddress);
             final String[] hostAddressParts = hostAddress.split("\\.");
 
-            final Random random = new Random();
-            final int port = random.nextInt(65535) + 3000;
-            System.out.println("Your assigned port is: " + port);
+            final Scanner portInput = new Scanner(System.in);
+            System.out.println("Enter desired port: ");
+            final int port = portInput.nextInt();
             long encodedHostAddress = 0;
             for (int i = 0; i < 4; i++) {
                 encodedHostAddress |= Integer.parseInt(hostAddressParts[i]) << (48 - (8 * i));
@@ -298,9 +298,9 @@ public class Main {
             final Host host = new Host(hostAddress, encodedHostAddress, port);
             final KademliaRPC rpc = new KademliaRPCImpl();
             final KademliaClient client = new KademliaClient(32, host, rpc, KSIZE);
-            final Scanner input = new Scanner(System.in);
 
             while (true) {
+                final Scanner input = new Scanner(System.in);
                 System.out.println("Enter remote host IP: ");
                 final String remoteIP = input.nextLine();
                 final String[] remoteIPParts = hostAddress.split("\\.");
@@ -314,7 +314,6 @@ public class Main {
                 System.out.println("The remote host's key is: " + remoteAddress);
                 final Host remoteHost = new Host(remoteIP, remoteAddress, remotePort);
                 client.addHost(remoteHost);
-                rpc.ping(remoteHost);
 
                 System.out.println("Enter a value to write to remote host: ");
                 final int value = input.nextInt();
@@ -322,8 +321,6 @@ public class Main {
 
                 System.out.println("Displaying any data written to this host in the meantime");
                 System.out.println(client.getDataStore());
-                System.out.println(client.allHosts());
-                System.out.flush();
             }
         } catch (UnknownHostException e) {
             e.printStackTrace();
