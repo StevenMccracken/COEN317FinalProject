@@ -29,6 +29,7 @@ public class KademliaClient implements Client {
     private KademliaRPC rpc;
 
     // The local data we are saving
+    @Getter
     private Map<Long, DataBlock> dataStore = new HashMap<>();
 
     // The size of each bucket
@@ -52,8 +53,7 @@ public class KademliaClient implements Client {
         try {
             final RemoteClient stub = (RemoteClient) UnicastRemoteObject.exportObject(this.remoteClient, self.port);
             final Registry registry = LocateRegistry.getRegistry();
-            System.out.println(self.ip);
-            registry.bind(self.ip, stub);
+            registry.bind(Long.toString(self.key), stub);
         } catch (RemoteException | AlreadyBoundException exception) {
             exception.printStackTrace();
         }
@@ -136,30 +136,30 @@ public class KademliaClient implements Client {
      * @param key the key to search for
      * @return the datablock if one could be found
      */
-    public Optional<DataBlock> get(long key) {
-        Optional<DataBlock> dataOp = Optional.ofNullable(dataStore.get(key));
-        if(dataOp.isPresent()) {
-            return dataOp;
+    public DataBlock get(long key) {
+        final DataBlock data = dataStore.get(key);
+        if(data != null) {
+            return data;
         }
 
         Host target = getClosestHost(key);
         Set<Host> checkedHosts = new HashSet<>();
         while(!checkedHosts.contains(target)) {
             HostSearchResult result = this.rpc.findValue(target, key);
-            if (result.getData().isPresent()) {
+            if (result.getData() != null) {
                 return result.getData();
             }
 
             // if there is no host and no data, then the data cannot be found
             if(result.getNextHost().isEmpty()) {
-                return Optional.empty();
+                return null;
             }
 
             checkedHosts.add(target);
             target = result.getNextHost().get(0);
         }
 
-        return Optional.empty();
+        return null;
     }
 
     public void put(long key, DataBlock data) {
@@ -240,7 +240,7 @@ public class KademliaClient implements Client {
     @Override
     public HostSearchResult findValue(long key) {
         if (this.hasData(key)) {
-            return new HostSearchResult(this.get(key).get());
+            return new HostSearchResult(this.get(key));
         }
         return new HostSearchResult(this.getClosestHosts(key, ksize));
     }

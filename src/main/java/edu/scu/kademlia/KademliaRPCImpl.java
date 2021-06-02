@@ -11,7 +11,7 @@ public final class KademliaRPCImpl implements KademliaRPC {
     private final RemoteClient getStub(Host host) {
         try {
             final Registry registry = LocateRegistry.getRegistry(null);
-            return (RemoteClient)registry.lookup(host.ip);
+            return (RemoteClient)registry.lookup(Long.toString(host.key));
         } catch (RemoteException exception) {
             System.err.println("Unable to get registry from LocateRegistry while getting stub.");
         } catch (NotBoundException exception) {
@@ -22,6 +22,7 @@ public final class KademliaRPCImpl implements KademliaRPC {
 
     @Override
     public List<Host> findNode(Host host, long key) {
+        System.out.println("Sending remote findNode");
         try {
             return getStub(host).findNode(key);
         } catch (RemoteException exception) {
@@ -32,6 +33,7 @@ public final class KademliaRPCImpl implements KademliaRPC {
 
     @Override
     public HostSearchResult findValue(Host host, long key) {
+        System.out.println("Sending remote findValue");
         try {
             return getStub(host).findValue(key);
         } catch (RemoteException exception) {
@@ -42,6 +44,7 @@ public final class KademliaRPCImpl implements KademliaRPC {
 
     @Override
     public void store(Host host, long key, DataBlock data) {
+        System.out.println("Sending remote store");
         try {
             getStub(host).store(key, data);
         } catch (RemoteException exception) {
@@ -51,6 +54,7 @@ public final class KademliaRPCImpl implements KademliaRPC {
 
     @Override
     public boolean ping(Host host) {
+        System.out.println("Sending remote ping");
         try {
             return getStub(host).ping();
         } catch (RemoteException exception) {
