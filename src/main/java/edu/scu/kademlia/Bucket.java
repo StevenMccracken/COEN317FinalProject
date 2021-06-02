@@ -105,12 +105,9 @@ public class Bucket {
     /**
      * update the network by refresh the k-buckets
      */
-    public void refreshBucket(){
+    public void refreshBucket() {
         //step 1: rule out not respond hosts in the bucket
-        System.out.println("start step1");
-        System.out.println("step1: before nodesinbucket size: " + nodesInBucket.size()); //for test only
         nodesInBucket.removeIf(curHost-> !rpc.ping(curHost));
-        System.out.println("step1: after nodesinbucket size: " + nodesInBucket.size()); //for test only
 
 //        //Step2: refill nodes(from backup) to the bucket
 //        System.out.println("start step2");

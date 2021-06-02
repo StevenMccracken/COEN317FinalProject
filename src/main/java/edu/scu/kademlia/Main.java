@@ -29,7 +29,7 @@ class DummyNetwork {
     }
 
     public List<Host> findNode(Host src, Host dest, long key) {
-        System.out.println("[Network] `findNode` to " + dest.ip + " key " + key);
+        System.out.println("[Network] `findNode` " + src.ip + " to " + dest.ip + " key " + key);
         KademliaClient client = dummyHosts.get(dest);
         List<Host> result = client.findNode(key);
         client.addHost(src);
@@ -37,7 +37,7 @@ class DummyNetwork {
     }
 
     public HostSearchResult findValue(Host src, Host dest, long key) {
-        System.out.println("[Network] `findValue` to " + dest.ip + " key " + key);
+        System.out.println("[Network] `findValue` " + src.ip + " to " + dest.ip + " key " + key);
         KademliaClient client = dummyHosts.get(dest);
         HostSearchResult result = client.findValue(key);
         client.addHost(src);
@@ -45,7 +45,7 @@ class DummyNetwork {
     }
 
     public void store(Host src, Host dest, long key, DataBlock data) {
-        System.out.println("[Network] `store` to " + dest.ip + " key " + key);
+        System.out.println("[Network] `store` " + src.ip + " to " + dest.ip + " key " + key);
         KademliaClient client = dummyHosts.get(dest);
         client.store(key, data);
     }
@@ -117,6 +117,8 @@ public class Main {
         KademliaClient selfClient2 = network.addHost(new Host("ip010", 0b010, 8000));
         KademliaClient selfClient3 = network.addHost(new Host("ip110", 0b110, 8000));
 
+        System.out.println("SETUP");
+
         selfClient.put(0b111, new DataBlock(1));
         selfClient.put(0b010, new DataBlock(5));
         var r1 = selfClient.get(0b111);
@@ -150,7 +152,7 @@ public class Main {
     }
 
     public static void testLeave() {
-        System.out.println("TEST NODE JOIN");
+        System.out.println("TEST NODE LEAVE");
         DummyNetwork network = new DummyNetwork(3);
         Host host1 = new Host("ip0000", 0b0000, 8000);
         Host host2 = new Host("ip0001", 0b0001, 8000);
@@ -163,16 +165,51 @@ public class Main {
         KademliaClient client4 = network.addHost(host4);
         KademliaClient client5 = network.addHost(host5);
 
+        System.out.println("SETUP");
+
         client1.put(0b1100, new DataBlock(5));
         ASSERT(client2.get(0b1100).sampleValue == 5);
         network.removeHost(host4);
         ASSERT(client2.get(0b1100).sampleValue == 5);
     }
 
+    public static void testRepublish() {
+        System.out.println("TEST NODE LEAVE");
+        DummyNetwork network = new DummyNetwork(3);
+        Host host1 = new Host("ip0000", 0b0000, 8000);
+        Host host2 = new Host("ip0001", 0b0001, 8000);
+        Host host3 = new Host("ip1000", 0b1000, 8000);
+        Host host4 = new Host("ip1100", 0b1100, 8000);
+        Host host5 = new Host("ip1010", 0b1010, 8000);
+        KademliaClient client1 = network.addHost(host1);
+        KademliaClient client2 = network.addHost(host2);
+        KademliaClient client3 = network.addHost(host3);
+        KademliaClient client4 = network.addHost(host4);
+        KademliaClient client5 = network.addHost(host5);
+
+        System.out.println("SETUP");
+
+        long testKey = 0b1010;
+        client5.store(testKey, new DataBlock(5));
+        ASSERT(!client3.hasData(testKey));
+        ASSERT(!client4.hasData(testKey));
+        ASSERT(client5.hasData(testKey));
+        client5.republish();
+        ASSERT(!client3.hasData(testKey));
+        ASSERT(!client4.hasData(testKey));
+        ASSERT(client5.hasData(testKey));
+        client5.republish();
+        ASSERT(client3.hasData(testKey));
+        ASSERT(client4.hasData(testKey));
+        ASSERT(client5.hasData(testKey));
+
+    }
+
     public static void main(String[] args) {
 //        testRPC();
 //        testRouteTree();
 //        testJoin();
-        testLeave();
+//        testLeave();
+        testRepublish();
     }
 }

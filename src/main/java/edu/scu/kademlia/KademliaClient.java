@@ -31,6 +31,8 @@ public class KademliaClient implements Client {
     // The size of each bucket
     private int ksize;
 
+    private Set<Long> recentStores = new HashSet<>();
+
 //    private final RemoteClientImpl remoteClient;
 
     public KademliaClient(int bitLen, Host self, KademliaRPC rpc, int ksize) {
@@ -76,6 +78,7 @@ public class KademliaClient implements Client {
 
     /**
      * adds a host to the route tree
+     *
      * @param host the host to add
      */
     public void addHost(Host host) {
@@ -116,7 +119,7 @@ public class KademliaClient implements Client {
         node.setRight(right);
 
         // add the hosts to the new buckets
-        for(Host host : oldBucket.getNodesInBucket()) {
+        for (Host host : oldBucket.getNodesInBucket()) {
             Bucket kbucket = getClosestBucket(host.getKey());
             kbucket.addHost(host);
         }
@@ -127,7 +130,7 @@ public class KademliaClient implements Client {
         Deque<Host> toCheck = new ArrayDeque<>(getClosestHosts(key, ksize, matchSelf));
         Set<Host> checkedHosts = new HashSet<>();
         checkedHosts.add(self);
-        while(!toCheck.isEmpty()) {
+        while (!toCheck.isEmpty()) {
             Host target = toCheck.removeFirst();
             if (checkedHosts.contains(target)) {
                 continue;
@@ -158,19 +161,20 @@ public class KademliaClient implements Client {
     /**
      * Handles getting data from the network. If the data is on this machine, it returns it. If not, it begins to
      * search the network calling findHost repeatedly until a result can be found or nothing.
+     *
      * @param key the key to search for
      * @return the datablock if one could be found
      */
     public DataBlock get(long key) {
         final DataBlock data = dataStore.get(key);
-        if(data != null) {
+        if (data != null) {
             return data;
         }
 
         Deque<Host> toCheck = new ArrayDeque<>(getClosestHosts(key, ksize, false));
         Set<Host> checkedHosts = new HashSet<>();
         checkedHosts.add(self);
-        while(!toCheck.isEmpty()) {
+        while (!toCheck.isEmpty()) {
             Host target = toCheck.removeFirst();
             if (checkedHosts.contains(target)) {
                 continue;
@@ -203,7 +207,7 @@ public class KademliaClient implements Client {
 
         for (Host target : targets) {
             if (target.equals(this.self)) {
-                dataStore.put(key, data);
+                store(key, data);
             } else {
                 try {
                     rpc.store(target, key, data);
@@ -216,10 +220,6 @@ public class KademliaClient implements Client {
 
     public boolean hasData(long key) {
         return dataStore.containsKey(key);
-    }
-
-    public Host getClosestHost(long key, boolean matchSelf) {
-        return getClosestHosts(key, 1, matchSelf).get(0);
     }
 
     public List<Host> allHosts() {
@@ -253,7 +253,7 @@ public class KademliaClient implements Client {
             Optional<RouteNode> nextNode;
 
             // check branch
-            if(dir == 0) {
+            if (dir == 0) {
                 nextNode = currNode.getLeft();
             } else {
                 nextNode = currNode.getRight();
@@ -274,6 +274,26 @@ public class KademliaClient implements Client {
         return (v >> id) & 1;
     }
 
+    public void republish() {
+        Bucket selfBucket = getClosestBucket(self.getKey());
+        selfBucket.refreshBucket();
+
+        for (var entry : dataStore.entrySet()) {
+            if (recentStores.contains(entry.getKey())) {
+                continue;
+            }
+            for (Host host : selfBucket.getNodesInBucket()) {
+                try {
+                    rpc.store(host, entry.getKey(), entry.getValue());
+                } catch (ConnectException e) {
+                    removeHost(host);
+                }
+            }
+        }
+
+        recentStores.clear();
+    }
+
     @Override
     public List<Host> findNode(long key) {
         return getClosestHosts(key, ksize, true);
@@ -289,6 +309,7 @@ public class KademliaClient implements Client {
 
     @Override
     public void store(long key, DataBlock data) {
+        recentStores.add(key);
         dataStore.put(key, data);
     }
 
