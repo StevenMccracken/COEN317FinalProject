@@ -53,8 +53,7 @@ public class KademliaClient implements Client {
         try {
             final RemoteClient stub = (RemoteClient) UnicastRemoteObject.exportObject(this.remoteClient, self.port);
             final Registry registry = LocateRegistry.getRegistry();
-            System.out.println(self.ip);
-            registry.bind(self.ip, stub);
+            registry.bind(Long.toString(self.key), stub);
         } catch (RemoteException | AlreadyBoundException exception) {
             exception.printStackTrace();
         }

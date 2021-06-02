@@ -3,12 +3,14 @@ package edu.scu.kademlia;
 import lombok.Getter;
 import lombok.Setter;
 
-public class Host {
+import java.io.Serializable;
+
+public class Host implements Serializable {
     @Getter
     final String ip;
 
     @Getter
-    private long key;
+    final long key;
 
     // udp port
     @Getter

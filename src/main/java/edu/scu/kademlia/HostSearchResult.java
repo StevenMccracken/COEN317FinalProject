@@ -3,11 +3,12 @@ package edu.scu.kademlia;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 
 @NoArgsConstructor
-class HostSearchResult {
+class HostSearchResult implements Serializable {
     @Getter
     List<Host> nextHost = List.of();
     @Getter
