@@ -26,4 +26,23 @@ public class Host implements Serializable {
         this.port = port;
         this.mostRecentSeen = System.currentTimeMillis();
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (!(obj instanceof Host)) {
+            return false;
+        }
+        if (obj == this) {
+            return true;
+        }
+        return this.key == ((Host)obj).key;
+    }
+
+    @Override
+    public int hashCode() {
+        return (int)this.key;
+    }
 }
