@@ -35,14 +35,14 @@ public class KademliaClient implements Client {
     // The size of each bucket
     private int ksize;
 
-    private final RemoteClientImpl remoteClient;
+//    private final RemoteClientImpl remoteClient;
 
     public KademliaClient(int bitLen, Host self, KademliaRPC rpc, int ksize) {
         this.bitLen = bitLen;
         this.self = self;
         this.rpc = rpc;
         this.ksize = ksize;
-        this.remoteClient = new RemoteClientImpl(this);
+//        this.remoteClient = new RemoteClientImpl(this);
 
         kbucketTree = new RouteNode();
         Bucket baseBucket = new Bucket(ksize, rpc);
@@ -50,12 +50,25 @@ public class KademliaClient implements Client {
         allBuckets.add(baseBucket);
         addHost(self);
 
-        try {
-            final RemoteClient stub = (RemoteClient) UnicastRemoteObject.exportObject(this.remoteClient, self.port);
-            final Registry registry = LocateRegistry.getRegistry();
-            registry.bind(Long.toString(self.key), stub);
-        } catch (RemoteException | AlreadyBoundException exception) {
-            exception.printStackTrace();
+//        try {
+//            final RemoteClient stub = (RemoteClient) UnicastRemoteObject.exportObject(this.remoteClient, self.port);
+//            final Registry registry = LocateRegistry.getRegistry();
+//            registry.bind(Long.toString(self.key), stub);
+//        } catch (RemoteException | AlreadyBoundException exception) {
+//            exception.printStackTrace();
+//        }
+    }
+
+    public void start(Host introducer) {
+        if (introducer == null) {
+            return;
+        }
+        addHost(introducer);
+
+        List<Host> others = nodeLookup(self.key, false);
+
+        for (Host other : others) {
+            addHost(other);
         }
     }
 
@@ -106,9 +119,9 @@ public class KademliaClient implements Client {
         }
     }
 
-    public List<Host> nodeLookup(long key) {
+    public List<Host> nodeLookup(long key, boolean matchSelf) {
         // Pretend that alpha = 1
-        Host target = getClosestHost(key);
+        Host target = getClosestHost(key, matchSelf);
         Set<Host> checkedHosts = new HashSet<>();
         while(!checkedHosts.contains(target)) {
             if (target.equals(self)) {
@@ -142,7 +155,7 @@ public class KademliaClient implements Client {
             return data;
         }
 
-        Host target = getClosestHost(key);
+        Host target = getClosestHost(key, true);
         Set<Host> checkedHosts = new HashSet<>();
         while(!checkedHosts.contains(target)) {
             HostSearchResult result = this.rpc.findValue(target, key);
@@ -163,7 +176,7 @@ public class KademliaClient implements Client {
     }
 
     public void put(long key, DataBlock data) {
-        Host target = nodeLookup(key).get(0); // this should get stored to k nodes but right now its just 1
+        Host target = nodeLookup(key, true).get(0); // this should get stored to k nodes but right now its just 1
         // if we should store it
         if (target.equals(this.self)) {
             dataStore.put(key, data);
@@ -177,8 +190,15 @@ public class KademliaClient implements Client {
         return dataStore.containsKey(key);
     }
 
-    public Host getClosestHost(long key) {
-        return getClosestHosts(key, 1).get(0);
+    public Host getClosestHost(long key, boolean matchSelf) {
+        if (matchSelf) {
+            return getClosestHosts(key, 1).get(0);
+        }
+        return getClosestHosts(key, 2)
+                .stream()
+                .filter(host -> !host.equals(self))
+                .findFirst()
+                .get();
     }
 
     public List<Host> allHosts() {
@@ -234,7 +254,7 @@ public class KademliaClient implements Client {
 
     @Override
     public List<Host> findNode(long key) {
-        return this.nodeLookup(key);
+        return this.nodeLookup(key, true);
     }
 
     @Override
