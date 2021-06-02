@@ -112,9 +112,9 @@ public class Main {
         KademliaClient selfClient3 = network.addHost(new Host("ip110", 0b110, 8000));
 
         selfClient.put(0b111, new DataBlock(1));
-        selfClient.put(0b011, new DataBlock(5));
+        selfClient.put(0b010, new DataBlock(5));
         var r1 = selfClient.get(0b111);
-        var r2 = selfClient.get(0b011);
+        var r2 = selfClient.get(0b010);
 
         ASSERT(r1.sampleValue == 1);
         ASSERT(r2.sampleValue == 5);
@@ -123,15 +123,45 @@ public class Main {
     public static void testJoin() {
         System.out.println("TEST NODE JOIN");
         DummyNetwork network = new DummyNetwork(2);
-        Host self = new Host("ip0000", 0b0000, 8000);
-        KademliaClient selfClient = network.addHost(self);
-        KademliaClient selfClient1 = network.addHost(new Host("ip0001", 0b0001, 8000));
-        KademliaClient selfClient2 = network.addHost(new Host("ip1000", 0b1000, 8000));
+        Host host1 = new Host("ip0000", 0b0000, 8000);
+        Host host2 = new Host("ip0001", 0b0001, 8000);
+        Host host3 = new Host("ip1000", 0b1000, 8000);
+        Host host4 = new Host("ip1100", 0b1100, 8000);
+        Host host5 = new Host("ip1010", 0b1010, 8000);
+        KademliaClient client1 = network.addHost(host1);
+        KademliaClient client2 = network.addHost(host2);
+        KademliaClient client3 = network.addHost(host3);
+        KademliaClient client4 = network.addHost(host4);
+        KademliaClient client5 = network.addHost(host5);
+
+        ASSERT(client1.allHosts().contains(host1));
+        ASSERT(client1.allHosts().contains(host2));
+        ASSERT(client1.allHosts().contains(host3));
+        ASSERT(client1.allHosts().contains(host4));
+    }
+
+    public static void testLeave() {
+        System.out.println("TEST NODE LEAVE");
+        DummyNetwork network = new DummyNetwork(4);
+        Host host1 = new Host("ip0111", 0b0111, 8000);
+        Host host2 = new Host("ip0011", 0b0011, 8000);
+        Host host3 = new Host("ip1011", 0b1011, 8000);
+        Host host4 = new Host("ip0110", 0b0110, 8000);
+        Host host5 = new Host("ip1111", 0b1111, 8000);
+        KademliaClient client1 = network.addHost(host1);
+        client1.addHost(host2);
+        client1.addHost(host3);
+        client1.addHost(host4);
+        client1.addHost(host5);
+
+        client1.getClosestNode(0b0111);
+        // unfinished
     }
 
     public static void main(String[] args) {
 //        testRPC();
         testRouteTree();
         testJoin();
+        testLeave();
     }
 }

@@ -2,11 +2,6 @@ package edu.scu.kademlia;
 
 import lombok.Getter;
 
-import java.rmi.AlreadyBoundException;
-import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
-import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -121,26 +116,28 @@ public class KademliaClient implements Client {
 
     public List<Host> nodeLookup(long key, boolean matchSelf) {
         // Pretend that alpha = 1
-        Host target = getClosestHost(key, matchSelf);
+        Deque<Host> toCheck = new ArrayDeque<>(getClosestHosts(key, ksize, matchSelf));
         Set<Host> checkedHosts = new HashSet<>();
-        while(!checkedHosts.contains(target)) {
-            if (target.equals(self)) {
-                return List.of(self);
+        checkedHosts.add(self);
+        while(!toCheck.isEmpty()) {
+            Host target = toCheck.removeFirst();
+            if (checkedHosts.contains(target)) {
+                continue;
             }
 
             List<Host> otherNodes = rpc.findNode(target, key);
             checkedHosts.add(target);
             addHost(target);
 
-            Optional<Host> targetOp = otherNodes.stream()
-                    .min((host1, host2) -> -((int) getDist(host1.getKey(), host2.getKey())));
-
-            if (targetOp.isPresent()) {
-                target = targetOp.get();
+            for (Host other : otherNodes) {
+                toCheck.addLast(other);
             }
         }
 
-        return List.of(target);
+        return checkedHosts.stream()
+                .sorted((host1, host2) -> (int) (getDist(key, host1.getKey()) - getDist(key, host2.getKey())))
+                .limit(ksize)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -191,14 +188,7 @@ public class KademliaClient implements Client {
     }
 
     public Host getClosestHost(long key, boolean matchSelf) {
-        if (matchSelf) {
-            return getClosestHosts(key, 1).get(0);
-        }
-        return getClosestHosts(key, 2)
-                .stream()
-                .filter(host -> !host.equals(self))
-                .findFirst()
-                .get();
+        return getClosestHosts(key, 1, matchSelf).get(0);
     }
 
     public List<Host> allHosts() {
@@ -207,9 +197,10 @@ public class KademliaClient implements Client {
                 .collect(Collectors.toList());
     }
 
-    public List<Host> getClosestHosts(long key, int count) {
+    public List<Host> getClosestHosts(long key, int count, boolean matchSelf) {
         return allHosts().stream()
                 .sorted((host1, host2) -> (int) (getDist(key, host1.getKey()) - getDist(key, host2.getKey())))
+                .filter(host -> !(host.equals(self) && !matchSelf))
                 .limit(count)
                 .collect(Collectors.toList());
     }
@@ -254,7 +245,7 @@ public class KademliaClient implements Client {
 
     @Override
     public List<Host> findNode(long key) {
-        return this.nodeLookup(key, true);
+        return getClosestHosts(key, ksize, true);
     }
 
     @Override
@@ -262,7 +253,7 @@ public class KademliaClient implements Client {
         if (this.hasData(key)) {
             return new HostSearchResult(this.get(key));
         }
-        return new HostSearchResult(this.getClosestHosts(key, ksize));
+        return new HostSearchResult(this.getClosestHosts(key, ksize, true));
     }
 
     @Override

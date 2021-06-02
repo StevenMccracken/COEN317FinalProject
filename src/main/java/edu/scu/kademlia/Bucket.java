@@ -69,7 +69,6 @@ public class Bucket {
 //            System.out.println("case 2: before size: "+nodesInBucket.size()); //for test only
             moveToLast(host);
 //            System.out.println("case 2: after size: "+nodesInBucket.size()); //for test only
-            System.out.println("same node moved to last");
             return true;
         }
 
