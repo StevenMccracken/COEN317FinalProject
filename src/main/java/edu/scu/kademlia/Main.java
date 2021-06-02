@@ -198,7 +198,6 @@ public class Main {
                     long lowerBound = (long) Math.pow(2, i);
                     long upperBound = (long) Math.pow(2, i+1);
                     long randomKey = lowerBound + (long) (Math.random() * (upperBound - lowerBound));
-//                    System.out.println(randomKey);
                     rpc.findNode(self, randomKey);
                 }
                 start = System.currentTimeMillis();
@@ -212,14 +211,13 @@ public class Main {
             final InetAddress inetAddress = InetAddress.getLocalHost();
             final String hostAddress = inetAddress.getHostAddress();
             final String[] hostAddressParts = hostAddress.split("\\.");
+            final int port = 8000;
             long encodedHostAddress = 0;
             for (int i = 0; i < 4; i++) {
-                encodedHostAddress += Integer.parseInt(hostAddressParts[i]) << (24 - (8 * i));
+                encodedHostAddress |= Integer.parseInt(hostAddressParts[i]) << (48 - (8 * i));
             }
-
-            System.out.println(hostAddress+" " + encodedHostAddress);
-
-            final Host host = new Host(hostAddress, encodedHostAddress, 8000);
+            encodedHostAddress |= port << 16;
+            final Host host = new Host(hostAddress, encodedHostAddress, port);
             final KademliaRPC rpc = new KademliaRPCImpl();
             final KademliaClient client = new KademliaClient(32, host, rpc, KSIZE);
             final Scanner input = new Scanner(System.in);
@@ -248,24 +246,22 @@ public class Main {
             final String[] hostAddressParts = hostAddress.split("\\.");
             long encodedHostAddress = 0;
             for (int i = 0; i < 4; i++) {
-                encodedHostAddress += Integer.parseInt(hostAddressParts[i]) << (24 - (8 * i));
+                encodedHostAddress |= Integer.parseInt(hostAddressParts[i]) << (48 - (8 * i));
             }
 
-//            final Host host = new Host(hostAddress, encodedHostAddress, 8000);
             int port1 = 8000;
-            String key1 = Long.toBinaryString(encodedHostAddress+(long)port1);
-            System.out.println(key1);
+            final long encodedHostAddress1 = encodedHostAddress | (port1 << 16);
+            String key1 = Long.toString(encodedHostAddress1);
             int port2 = 8001;
-            String key2 = Long.toBinaryString(encodedHostAddress+(long)port2);
-            System.out.println(key2);
-
+            final long encodedHostAddress2 = encodedHostAddress | (port2 << 16);
+            String key2 = Long.toString(encodedHostAddress2);
             int port3 = 8002;
-            String key3 = Long.toBinaryString(encodedHostAddress+(long)port3);
-            System.out.println(key3);
+            final long encodedHostAddress3 = encodedHostAddress | (port3 << 16);
+            String key3 = Long.toString(encodedHostAddress3);
 
-            Host self = new Host(hostAddress, encodedHostAddress+port1, port1);
-            Host newhost1 = new Host(hostAddress, encodedHostAddress+port2, port2);
-            Host newhost2 = new Host(hostAddress, encodedHostAddress+port3, port3);
+            Host self = new Host(hostAddress, encodedHostAddress1, port1);
+            Host newhost1 = new Host(hostAddress, encodedHostAddress2, port2);
+            Host newhost2 = new Host(hostAddress, encodedHostAddress3, port3);
 
             KademliaRPC selfrpc = new KademliaRPCImpl();
             KademliaRPC rpc1 = new KademliaRPCImpl();
@@ -294,14 +290,6 @@ public class Main {
     }
 
     public static void main(String[] args) {
-//        testRouteTree();
-//        testBucketrefreshing();
-//        testNewNodeJoining();
-
-//        periodicallyBucketReshing();
-//        periodicallyKeyValueRestoring();
-//        periodicallyBucketRefreshing();
         testNodeJoining();
-//        testRPC();
     }
 }

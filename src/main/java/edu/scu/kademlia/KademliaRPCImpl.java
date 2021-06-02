@@ -11,7 +11,7 @@ public final class KademliaRPCImpl implements KademliaRPC {
     private final RemoteClient getStub(Host host) {
         try {
             final Registry registry = LocateRegistry.getRegistry(null);
-            return (RemoteClient)registry.lookup(host.ip);
+            return (RemoteClient)registry.lookup(Long.toString(host.key));
         } catch (RemoteException exception) {
             System.err.println("Unable to get registry from LocateRegistry while getting stub.");
         } catch (NotBoundException exception) {
