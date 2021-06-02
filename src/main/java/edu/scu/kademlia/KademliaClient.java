@@ -2,6 +2,7 @@ package edu.scu.kademlia;
 
 import lombok.Getter;
 
+import java.rmi.ConnectException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -67,6 +68,12 @@ public class KademliaClient implements Client {
         }
     }
 
+    public void removeHost(Host host) {
+        RouteNode targetNode = getClosestNode(host.getKey());
+        Bucket kbucket = targetNode.getKbucket().get();
+        kbucket.removeHost(host);
+    }
+
     /**
      * adds a host to the route tree
      * @param host the host to add
@@ -88,6 +95,7 @@ public class KademliaClient implements Client {
         splitNode(targetNode);
         addHost(host);
     }
+
 
     private void splitNode(RouteNode node) {
         Bucket oldBucket = node.getKbucket().get();
@@ -125,9 +133,16 @@ public class KademliaClient implements Client {
                 continue;
             }
 
-            List<Host> otherNodes = rpc.findNode(target, key);
+
+            List<Host> otherNodes;
+            try {
+                otherNodes = rpc.findNode(target, key);
+                addHost(target);
+            } catch (ConnectException e) {
+                removeHost(target);
+                otherNodes = List.of();
+            }
             checkedHosts.add(target);
-            addHost(target);
 
             for (Host other : otherNodes) {
                 toCheck.addLast(other);
@@ -152,35 +167,51 @@ public class KademliaClient implements Client {
             return data;
         }
 
-        Host target = getClosestHost(key, true);
+        Deque<Host> toCheck = new ArrayDeque<>(getClosestHosts(key, ksize, false));
         Set<Host> checkedHosts = new HashSet<>();
-        while(!checkedHosts.contains(target)) {
-            HostSearchResult result = this.rpc.findValue(target, key);
+        checkedHosts.add(self);
+        while(!toCheck.isEmpty()) {
+            Host target = toCheck.removeFirst();
+            if (checkedHosts.contains(target)) {
+                continue;
+            }
+
+            HostSearchResult result = null;
+            checkedHosts.add(target);
+            try {
+                result = rpc.findValue(target, key);
+                addHost(target);
+            } catch (ConnectException e) {
+                removeHost(target);
+                continue;
+            }
+
             if (result.getData() != null) {
                 return result.getData();
             }
 
-            // if there is no host and no data, then the data cannot be found
-            if(result.getNextHost().isEmpty()) {
-                return null;
+            for (Host other : result.getNextHost()) {
+                toCheck.addLast(other);
             }
-
-            checkedHosts.add(target);
-            target = result.getNextHost().get(0);
         }
 
         return null;
     }
 
     public void put(long key, DataBlock data) {
-        Host target = nodeLookup(key, true).get(0); // this should get stored to k nodes but right now its just 1
-        // if we should store it
-        if (target.equals(this.self)) {
-            dataStore.put(key, data);
-            return;
-        }
+        List<Host> targets = nodeLookup(key, true); // this should get stored to k nodes but right now its just 1
 
-        rpc.store(target, key, data);
+        for (Host target : targets) {
+            if (target.equals(this.self)) {
+                dataStore.put(key, data);
+            } else {
+                try {
+                    rpc.store(target, key, data);
+                } catch (ConnectException e) {
+                    removeHost(target);
+                }
+            }
+        }
     }
 
     public boolean hasData(long key) {
@@ -258,7 +289,7 @@ public class KademliaClient implements Client {
 
     @Override
     public void store(long key, DataBlock data) {
-        this.put(key, data);
+        dataStore.put(key, data);
     }
 
     @Override

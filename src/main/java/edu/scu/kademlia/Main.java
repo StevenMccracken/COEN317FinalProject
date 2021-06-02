@@ -2,10 +2,7 @@ package edu.scu.kademlia;
 
 import lombok.RequiredArgsConstructor;
 
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.rmi.ConnectException;
 import java.util.*;
 
 @RequiredArgsConstructor
@@ -66,17 +63,26 @@ class DummyRPC implements KademliaRPC {
     final Host self;
 
     @Override
-    public List<Host> findNode(Host host, long key) {
+    public List<Host> findNode(Host host, long key) throws ConnectException {
+        if (!network.ping(host)) {
+            throw new ConnectException("Host offline");
+        }
         return network.findNode(self, host, key);
     }
 
     @Override
-    public HostSearchResult findValue(Host host, long key) {
+    public HostSearchResult findValue(Host host, long key) throws ConnectException {
+        if (!network.ping(host)) {
+            throw new ConnectException("Host offline");
+        }
         return network.findValue(self, host, key);
     }
 
     @Override
-    public void store(Host host, long key, DataBlock data) {
+    public void store(Host host, long key, DataBlock data) throws ConnectException {
+        if (!network.ping(host)) {
+            throw new ConnectException("Host offline");
+        }
         network.store(self, host, key, data);
     }
 
@@ -118,6 +124,9 @@ public class Main {
 
         ASSERT(r1.sampleValue == 1);
         ASSERT(r2.sampleValue == 5);
+
+        ASSERT(selfClient2.hasData(0b010));
+        ASSERT(selfClient.hasData(0b111));
     }
 
     public static void testJoin() {
@@ -141,27 +150,29 @@ public class Main {
     }
 
     public static void testLeave() {
-        System.out.println("TEST NODE LEAVE");
-        DummyNetwork network = new DummyNetwork(4);
-        Host host1 = new Host("ip0111", 0b0111, 8000);
-        Host host2 = new Host("ip0011", 0b0011, 8000);
-        Host host3 = new Host("ip1011", 0b1011, 8000);
-        Host host4 = new Host("ip0110", 0b0110, 8000);
-        Host host5 = new Host("ip1111", 0b1111, 8000);
+        System.out.println("TEST NODE JOIN");
+        DummyNetwork network = new DummyNetwork(3);
+        Host host1 = new Host("ip0000", 0b0000, 8000);
+        Host host2 = new Host("ip0001", 0b0001, 8000);
+        Host host3 = new Host("ip1000", 0b1000, 8000);
+        Host host4 = new Host("ip1100", 0b1100, 8000);
+        Host host5 = new Host("ip1010", 0b1010, 8000);
         KademliaClient client1 = network.addHost(host1);
-        client1.addHost(host2);
-        client1.addHost(host3);
-        client1.addHost(host4);
-        client1.addHost(host5);
+        KademliaClient client2 = network.addHost(host2);
+        KademliaClient client3 = network.addHost(host3);
+        KademliaClient client4 = network.addHost(host4);
+        KademliaClient client5 = network.addHost(host5);
 
-        client1.getClosestNode(0b0111);
-        // unfinished
+        client1.put(0b1100, new DataBlock(5));
+        ASSERT(client2.get(0b1100).sampleValue == 5);
+        network.removeHost(host4);
+        ASSERT(client2.get(0b1100).sampleValue == 5);
     }
 
     public static void main(String[] args) {
 //        testRPC();
-        testRouteTree();
-        testJoin();
+//        testRouteTree();
+//        testJoin();
         testLeave();
     }
 }

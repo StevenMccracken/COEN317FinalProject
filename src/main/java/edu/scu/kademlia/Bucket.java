@@ -27,6 +27,10 @@ public class Bucket {
         this.rpc = rpc;
     }
 
+    public void removeHost(Host host) {
+        nodesInBucket.remove(host);
+    }
+
     /**
      * move a node to the tail of its bucket
      */
