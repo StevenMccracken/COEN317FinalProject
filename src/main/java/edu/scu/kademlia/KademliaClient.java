@@ -318,6 +318,20 @@ public class KademliaClient implements Client {
         return true;
     }
 
+    public void printHosts() {
+        System.out.println("[" + self.ip + "] Known Hosts:");
+        for(Host host : allHosts()) {
+            System.out.println("[" + self.ip + "]\t\t" + host.ip);
+        }
+    }
+
+    public void printDataStore() {
+        System.out.println("[" + self.ip + "] DataStore:");
+        for(var entry : dataStore.entrySet()) {
+            System.out.println("[" + self.ip + "]\t\t" + entry.getKey() + " -> " + entry.getValue().sampleValue);
+        }
+    }
+
     private static class RouteNode {
         @Getter
         Optional<Bucket> kbucket = Optional.empty(); // right now the bucket can only have 1 element. k=1 (I think)

@@ -108,47 +108,48 @@ public class Main {
         }
     }
 
-    public static void testRouteTree() {
-        System.out.println("TEST ROUTE TREE");
+    public static void testDataStore() {
+        System.out.println("TEST DATA STORE");
         DummyNetwork network = new DummyNetwork(1);
-        Host self = new Host("ip111", 0b111, 8000);
-        KademliaClient selfClient = network.addHost(self);
-        KademliaClient selfClient1 = network.addHost(new Host("ip000", 0b000, 8000));
-        KademliaClient selfClient2 = network.addHost(new Host("ip010", 0b010, 8000));
-        KademliaClient selfClient3 = network.addHost(new Host("ip110", 0b110, 8000));
-
-        System.out.println("SETUP");
-
-        selfClient.put(0b111, new DataBlock(1));
-        selfClient.put(0b010, new DataBlock(5));
-        var r1 = selfClient.get(0b111);
-        var r2 = selfClient.get(0b010);
-
-        ASSERT(r1.sampleValue == 1);
-        ASSERT(r2.sampleValue == 5);
-
-        ASSERT(selfClient2.hasData(0b010));
-        ASSERT(selfClient.hasData(0b111));
-    }
-
-    public static void testJoin() {
-        System.out.println("TEST NODE JOIN");
-        DummyNetwork network = new DummyNetwork(2);
-        Host host1 = new Host("ip0000", 0b0000, 8000);
-        Host host2 = new Host("ip0001", 0b0001, 8000);
-        Host host3 = new Host("ip1000", 0b1000, 8000);
-        Host host4 = new Host("ip1100", 0b1100, 8000);
-        Host host5 = new Host("ip1010", 0b1010, 8000);
+        Host host1 = new Host("ip111", 0b0111, 8000);
+        Host host2 = new Host("ip000", 0b0000, 8000);
+        Host host3 = new Host("ip010", 0b0010, 8000);
+        Host host4 = new Host("ip110", 0b0110, 8000);
         KademliaClient client1 = network.addHost(host1);
         KademliaClient client2 = network.addHost(host2);
         KademliaClient client3 = network.addHost(host3);
         KademliaClient client4 = network.addHost(host4);
-        KademliaClient client5 = network.addHost(host5);
 
-        ASSERT(client1.allHosts().contains(host1));
-        ASSERT(client1.allHosts().contains(host2));
-        ASSERT(client1.allHosts().contains(host3));
-        ASSERT(client1.allHosts().contains(host4));
+        System.out.println("NETWORK READY");
+
+        client1.put(0b111, new DataBlock(1));
+        client1.put(0b010, new DataBlock(5));
+
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+    }
+
+    public static void testJoin() {
+        System.out.println("TEST NODE JOIN");
+        DummyNetwork network = new DummyNetwork(1);
+        Host host1 = new Host("ip111", 0b0111, 8000);
+        Host host2 = new Host("ip000", 0b0000, 8000);
+        Host host3 = new Host("ip010", 0b0010, 8000);
+        Host host4 = new Host("ip110", 0b0110, 8000);
+        System.out.println("ADD " + host1.toString());
+        KademliaClient client1 = network.addHost(host1);
+        System.out.println("ADD " + host2.toString());
+        KademliaClient client2 = network.addHost(host2);
+        System.out.println("ADD " + host3.toString());
+        KademliaClient client3 = network.addHost(host3);
+        System.out.println("ADD " + host4.toString());
+        KademliaClient client4 = network.addHost(host4);
+        client1.printHosts();
+        client2.printHosts();
+        client3.printHosts();
+        client4.printHosts();
     }
 
     public static void testLeave() {
@@ -167,10 +168,17 @@ public class Main {
 
         System.out.println("SETUP");
 
-        client1.put(0b1100, new DataBlock(5));
-        ASSERT(client2.get(0b1100).sampleValue == 5);
+        client1.put(0b1100, new DataBlock(10));
+        client1.put(0b0001, new DataBlock(15));
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
+        System.out.println("Get 0b1100: " + client1.get(0b1100));
         network.removeHost(host4);
-        ASSERT(client2.get(0b1100).sampleValue == 5);
+        System.out.println("Get 0b1100: " + client1.get(0b1100));
+
     }
 
     public static void testRepublish() {
@@ -190,24 +198,30 @@ public class Main {
         System.out.println("SETUP");
 
         long testKey = 0b1010;
-        client5.store(testKey, new DataBlock(5));
-        ASSERT(!client3.hasData(testKey));
-        ASSERT(!client4.hasData(testKey));
-        ASSERT(client5.hasData(testKey));
+        client5.store(testKey, new DataBlock(25));
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
         client5.republish();
-        ASSERT(!client3.hasData(testKey));
-        ASSERT(!client4.hasData(testKey));
-        ASSERT(client5.hasData(testKey));
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
         client5.republish();
-        ASSERT(client3.hasData(testKey));
-        ASSERT(client4.hasData(testKey));
-        ASSERT(client5.hasData(testKey));
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
 
     }
 
     public static void main(String[] args) {
 //        testRPC();
-//        testRouteTree();
+//        testDataStore();
 //        testJoin();
 //        testLeave();
         testRepublish();
