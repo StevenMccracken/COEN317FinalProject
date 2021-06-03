@@ -2,6 +2,8 @@ package edu.scu.kademlia;
 
 import lombok.RequiredArgsConstructor;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.rmi.ConnectException;
 import java.util.*;
 
@@ -13,7 +15,7 @@ class DummyNetwork {
     // This method is just for the dummy class to set up its hosts
     public KademliaClient addHost(Host host) {
         DummyRPC rpc = new DummyRPC(this, host);
-        KademliaClient client = new KademliaClient(4, host, rpc, ksize);
+        KademliaClient client = new KademliaClient(4, host, rpc, ksize, false);
         Host introducer = null;
         if (!dummyHosts.isEmpty()) {
             introducer = dummyHosts.keySet().stream().findFirst().get();
@@ -251,13 +253,62 @@ public class Main {
 
     }
 
+    private static void testRPC() {
+        try {
+            final InetAddress inetAddress = InetAddress.getLocalHost();
+            final String hostAddress = inetAddress.getHostAddress();
+            System.out.println("Your IP address is: " + hostAddress);
+            final String[] hostAddressParts = hostAddress.split("\\.");
+
+            final Scanner portInput = new Scanner(System.in);
+            System.out.println("Enter desired port: ");
+            final int port = portInput.nextInt();
+            long encodedHostAddress = 0;
+            for (int i = 0; i < 4; i++) {
+                encodedHostAddress |= Integer.parseInt(hostAddressParts[i]) << (48 - (8 * i));
+            }
+            encodedHostAddress |= port << 16;
+            System.out.println("Your local key is: " + encodedHostAddress);
+
+            final Host host = new Host(hostAddress, encodedHostAddress, port);
+            final KademliaRPC rpc = new KademliaRPCImpl();
+            final KademliaClient client = new KademliaClient(32, host, rpc, 3, true);
+
+            while (true) {
+                final Scanner input = new Scanner(System.in);
+                System.out.println("Enter remote host IP: ");
+                final String remoteIP = input.nextLine();
+                final String[] remoteIPParts = hostAddress.split("\\.");
+                System.out.println("Enter remote host port: ");
+                final int remotePort = input.nextInt();
+                long remoteAddress = 0;
+                for (int i = 0; i < 4; i++) {
+                    remoteAddress |= Integer.parseInt(remoteIPParts[i]) << (48 - (8 * i));
+                }
+                remoteAddress |= remotePort << 16;
+                System.out.println("The remote host's key is: " + remoteAddress);
+                final Host remoteHost = new Host(remoteIP, remoteAddress, remotePort);
+                client.addHost(remoteHost);
+
+                System.out.println("Enter a value to write to remote host: ");
+                final int value = input.nextInt();
+                client.put(remoteAddress, new DataBlock(value));
+
+                System.out.println("Displaying any data written to this host in the meantime");
+                System.out.println(client.getDataStore());
+            }
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public static void main(String[] args) {
-//        testRPC();
-//        testDataStore();
-//        testJoin();
-//        testLeave();
-//        testRepublish();
+        testDataStore();
+        testJoin();
+        testLeave();
+        testRepublish();
         testJoinReplication();
+//        testRPC();
     }
 }

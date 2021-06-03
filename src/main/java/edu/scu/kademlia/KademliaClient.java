@@ -2,7 +2,12 @@ package edu.scu.kademlia;
 
 import lombok.Getter;
 
+import java.rmi.AlreadyBoundException;
 import java.rmi.ConnectException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,14 +38,14 @@ public class KademliaClient implements Client {
 
     private Set<Long> recentStores = new HashSet<>();
 
-//    private final RemoteClientImpl remoteClient;
+    private final RemoteClientImpl remoteClient;
 
-    public KademliaClient(int bitLen, Host self, KademliaRPC rpc, int ksize) {
+    public KademliaClient(int bitLen, Host self, KademliaRPC rpc, int ksize, boolean useRemoteClient) {
         this.bitLen = bitLen;
         this.self = self;
         this.rpc = rpc;
         this.ksize = ksize;
-//        this.remoteClient = new RemoteClientImpl(this);
+        this.remoteClient = useRemoteClient ? new RemoteClientImpl(this) : null;
 
         kbucketTree = new RouteNode();
         Bucket baseBucket = new Bucket(ksize, rpc);
@@ -48,13 +53,15 @@ public class KademliaClient implements Client {
         allBuckets.add(baseBucket);
         addHost(self);
 
-//        try {
-//            final RemoteClient stub = (RemoteClient) UnicastRemoteObject.exportObject(this.remoteClient, self.port);
-//            final Registry registry = LocateRegistry.getRegistry();
-//            registry.bind(Long.toString(self.key), stub);
-//        } catch (RemoteException | AlreadyBoundException exception) {
-//            exception.printStackTrace();
-//        }
+        if (useRemoteClient) {
+            try {
+                final RemoteClient stub = (RemoteClient) UnicastRemoteObject.exportObject(this.remoteClient, self.port);
+                final Registry registry = LocateRegistry.getRegistry();
+                registry.bind(Long.toString(self.key), stub);
+            } catch (RemoteException | AlreadyBoundException exception) {
+                exception.printStackTrace();
+            }
+        }
     }
 
     public void start(Host introducer) {
@@ -375,5 +382,3 @@ public class KademliaClient implements Client {
         }
     }
 }
-
-
