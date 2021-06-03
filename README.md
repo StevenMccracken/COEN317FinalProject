@@ -21,3 +21,8 @@ Perform the following commands after program run completion:
 ```shell
 ./rmiregistry_stop.sh
 ```
+
+# RMI test
+1) Uncomment the `testRPC()` call in `public static void main` of `Main.java`.
+2) Run the program on from two separate java execution environments (IDEs, command line, etc)
+3) Have fun writing values to different hosts that are in the network
