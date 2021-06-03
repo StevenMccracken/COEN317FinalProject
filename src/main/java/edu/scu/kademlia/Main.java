@@ -304,11 +304,11 @@ public class Main {
 
 
     public static void main(String[] args) {
-//        testRPC();
-//        testDataStore();
-//        testJoin();
-//        testLeave();
-//        testRepublish();
+        testDataStore();
+        testJoin();
+        testLeave();
+        testRepublish();
         testJoinReplication();
+//        testRPC();
     }
 }
