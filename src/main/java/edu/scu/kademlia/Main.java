@@ -18,7 +18,7 @@ class DummyRPC implements KademliaRPC {
     // This method is just for the dummy class to set up its hosts
     public KademliaClient addHost(Host host) {
 
-        KademliaClient client = new KademliaClient(3, host, this, ksize);
+        KademliaClient client = new KademliaClient(3, host, this, ksize, false);
         dummyHosts.put(host, client);
 
         // all trees have all nodes if needed
@@ -175,8 +175,8 @@ public class Main {
             KademliaRPC selfrpc = new KademliaRPCImpl();
             KademliaRPC rpc1 = new KademliaRPCImpl();
             int bitLen = 32;
-            KademliaClient selfClient = new KademliaClient(bitLen, self, selfrpc, KSIZE);
-            KademliaClient Client1 = new KademliaClient(bitLen, host1, rpc1, KSIZE);
+            KademliaClient selfClient = new KademliaClient(bitLen, self, selfrpc, KSIZE, true);
+            KademliaClient Client1 = new KademliaClient(bitLen, host1, rpc1, KSIZE, true);
             selfClient.addHost(host1);
 
             selfClient.put(3030, new DataBlock(3030));
@@ -244,7 +244,7 @@ public class Main {
 
             KademliaRPC selfrpc = new KademliaRPCImpl();
             int bitLen = 32;
-            KademliaClient selfClient = new KademliaClient(bitLen, self, selfrpc, KSIZE);
+            KademliaClient selfClient = new KademliaClient(bitLen, self, selfrpc, KSIZE, true);
             selfClient.addHost(host1);
             selfClient.addHost(host2);
             selfClient.addHost(host3);
@@ -297,7 +297,7 @@ public class Main {
 
             final Host host = new Host(hostAddress, encodedHostAddress, port);
             final KademliaRPC rpc = new KademliaRPCImpl();
-            final KademliaClient client = new KademliaClient(32, host, rpc, KSIZE);
+            final KademliaClient client = new KademliaClient(32, host, rpc, KSIZE, true);
 
             while (true) {
                 final Scanner input = new Scanner(System.in);
@@ -361,9 +361,9 @@ public class Main {
             KademliaRPC rpc1 = new KademliaRPCImpl();
             KademliaRPC rpc2 = new KademliaRPCImpl();
 
-            KademliaClient selfClient = new KademliaClient(32, self, selfrpc, KSIZE);
-            KademliaClient newClient1 = new KademliaClient(32, newhost1, rpc1, KSIZE);
-            KademliaClient newClient2 = new KademliaClient(32, newhost2, rpc2, KSIZE);
+            KademliaClient selfClient = new KademliaClient(32, self, selfrpc, KSIZE, true);
+            KademliaClient newClient1 = new KademliaClient(32, newhost1, rpc1, KSIZE, true);
+            KademliaClient newClient2 = new KademliaClient(32, newhost2, rpc2, KSIZE, true);
 
             selfClient.addHost(newhost1);
             newClient1.addHost(self);
