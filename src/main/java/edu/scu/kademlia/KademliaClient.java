@@ -2,7 +2,12 @@ package edu.scu.kademlia;
 
 import lombok.Getter;
 
+import java.rmi.AlreadyBoundException;
 import java.rmi.ConnectException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,7 +38,7 @@ public class KademliaClient implements Client {
 
     private Set<Long> recentStores = new HashSet<>();
 
-//    private final RemoteClientImpl remoteClient;
+    private final RemoteClientImpl remoteClient;
 
     public KademliaClient(int bitLen, Host self, KademliaRPC rpc, int ksize, boolean useRemoteClient) {
         this.bitLen = bitLen;

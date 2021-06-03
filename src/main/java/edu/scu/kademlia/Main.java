@@ -2,6 +2,8 @@ package edu.scu.kademlia;
 
 import lombok.RequiredArgsConstructor;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.rmi.ConnectException;
 import java.util.*;
 
@@ -270,7 +272,7 @@ public class Main {
 
             final Host host = new Host(hostAddress, encodedHostAddress, port);
             final KademliaRPC rpc = new KademliaRPCImpl();
-            final KademliaClient client = new KademliaClient(32, host, rpc, KSIZE, true);
+            final KademliaClient client = new KademliaClient(32, host, rpc, 3, true);
 
             while (true) {
                 final Scanner input = new Scanner(System.in);
