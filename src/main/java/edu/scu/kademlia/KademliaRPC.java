@@ -10,7 +10,7 @@ public interface KademliaRPC {
      * @param key  The key we would like to find the host for
      * @return A list of up to k nodes that are closest to the target key
      */
-    List<Host> findNode(Host host, long key) throws ConnectException;
+    List<Host> findNode(Host host, long key, boolean isNew) throws ConnectException;
 
     /**
      * @param host The host to send this RPC to

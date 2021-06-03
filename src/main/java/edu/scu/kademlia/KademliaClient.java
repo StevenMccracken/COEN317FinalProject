@@ -63,7 +63,7 @@ public class KademliaClient implements Client {
         }
         addHost(introducer);
 
-        List<Host> others = nodeLookup(self.key, false);
+        List<Host> others = nodeLookup(self.key, true);
 
         for (Host other : others) {
             addHost(other);
@@ -84,6 +84,7 @@ public class KademliaClient implements Client {
     public void addHost(Host host) {
         RouteNode targetNode = getClosestNode(host.getKey());
         Bucket kbucket = targetNode.getKbucket().get();
+        boolean inOwnBucket = kbucket.contains(self);
         boolean success = kbucket.addHost(host);
 
         // if we failed to insert and the bucket contains this node
@@ -91,7 +92,7 @@ public class KademliaClient implements Client {
             return;
         }
 
-        if (!kbucket.contains(self)) {
+        if (!inOwnBucket) {
             return;
         }
 
@@ -125,9 +126,9 @@ public class KademliaClient implements Client {
         }
     }
 
-    public List<Host> nodeLookup(long key, boolean matchSelf) {
+    public List<Host> nodeLookup(long key, boolean isNew) {
         // Pretend that alpha = 1
-        Deque<Host> toCheck = new ArrayDeque<>(getClosestHosts(key, ksize, matchSelf));
+        Deque<Host> toCheck = new ArrayDeque<>(getClosestHosts(key, ksize, !isNew));
         Set<Host> checkedHosts = new HashSet<>();
         checkedHosts.add(self);
         while (!toCheck.isEmpty()) {
@@ -139,7 +140,7 @@ public class KademliaClient implements Client {
 
             List<Host> otherNodes;
             try {
-                otherNodes = rpc.findNode(target, key);
+                otherNodes = rpc.findNode(target, key, isNew);
                 addHost(target);
             } catch (ConnectException e) {
                 removeHost(target);
@@ -203,7 +204,7 @@ public class KademliaClient implements Client {
     }
 
     public void put(long key, DataBlock data) {
-        List<Host> targets = nodeLookup(key, true); // this should get stored to k nodes but right now its just 1
+        List<Host> targets = nodeLookup(key, false); // this should get stored to k nodes but right now its just 1
 
         for (Host target : targets) {
             if (target.equals(this.self)) {
@@ -214,6 +215,27 @@ public class KademliaClient implements Client {
                 } catch (ConnectException e) {
                     removeHost(target);
                 }
+            }
+        }
+    }
+
+    public void replicateClosest(Host target) {
+        for(var entry : dataStore.entrySet()) {
+            Host closest = getClosestHosts(entry.getKey(), 2, true)
+                    .stream()
+                    .filter(host -> !host.equals(target))
+                    .findFirst()
+                    .get();
+
+            if (!closest.equals(self)) {
+                continue;
+            }
+
+            try {
+                rpc.store(target, entry.getKey(), entry.getValue());
+            } catch (ConnectException e) {
+                removeHost(target);
+                break;
             }
         }
     }

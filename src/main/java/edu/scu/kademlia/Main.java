@@ -28,11 +28,14 @@ class DummyNetwork {
         dummyHosts.remove(host);
     }
 
-    public List<Host> findNode(Host src, Host dest, long key) {
+    public List<Host> findNode(Host src, Host dest, long key, boolean isNew) {
         System.out.println("[Network] `findNode` " + src.ip + " to " + dest.ip + " key " + key);
         KademliaClient client = dummyHosts.get(dest);
         List<Host> result = client.findNode(key);
         client.addHost(src);
+        if (isNew) {
+            client.replicateClosest(src);
+        }
         return result;
     }
 
@@ -63,11 +66,11 @@ class DummyRPC implements KademliaRPC {
     final Host self;
 
     @Override
-    public List<Host> findNode(Host host, long key) throws ConnectException {
+    public List<Host> findNode(Host host, long key, boolean isNew) throws ConnectException {
         if (!network.ping(host)) {
             throw new ConnectException("Host offline");
         }
-        return network.findNode(self, host, key);
+        return network.findNode(self, host, key, isNew);
     }
 
     @Override
@@ -219,11 +222,42 @@ public class Main {
 
     }
 
+    public static void testJoinReplication() {
+        System.out.println("TEST NODE JOIN REPLICATION");
+        DummyNetwork network = new DummyNetwork(3);
+        Host host1 = new Host("ip0000", 0b0000, 8000);
+        Host host2 = new Host("ip0001", 0b0001, 8000);
+        Host host3 = new Host("ip1000", 0b1000, 8000);
+        Host host4 = new Host("ip1100", 0b1100, 8000);
+        Host host5 = new Host("ip1010", 0b1010, 8000);
+        KademliaClient client1 = network.addHost(host1);
+        KademliaClient client2 = network.addHost(host2);
+        KademliaClient client3 = network.addHost(host3);
+
+        System.out.println("SETUP");
+        client3.store(0b1010, new DataBlock(30));
+        client3.store(0b1100, new DataBlock(32));
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+
+        KademliaClient client4 = network.addHost(host4);
+        KademliaClient client5 = network.addHost(host5);
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
+
+    }
+
+
     public static void main(String[] args) {
 //        testRPC();
 //        testDataStore();
 //        testJoin();
 //        testLeave();
-        testRepublish();
+//        testRepublish();
+        testJoinReplication();
     }
 }
