@@ -158,10 +158,56 @@ public class Main {
         // unfinished
     }
 
+    public static void testDataReplication() {
+        System.out.println("TEST DATA REPLICATION");
+        DummyNetwork network = new DummyNetwork(2);
+
+        Host host1 = new Host("ip1000", 0b1000, 8000);
+        Host host2 = new Host("ip0000", 0b0000, 8000);
+        Host newhost = new Host("ip0010", 0b0010, 8000); //new join
+
+        KademliaClient client1 = network.addHost(host1);
+        KademliaClient client2 = network.addHost(host2); //joined
+
+
+        client1.put(0b1100, new DataBlock(100));
+        client1.put(0b1000, new DataBlock(500));
+
+        client2.put(0b0000, new DataBlock(111));
+        client2.put(0b0001, new DataBlock(555));
+
+        KademliaClient newClient = network.addHost(newhost); //joined
+
+        System.out.println("data in newClient before join is empty: " + newClient.getDataStore().isEmpty());
+
+        Host target = newClient.getClosestHost(0b0010, false); //newhost key
+//        System.out.println("target host ip: " + target.ip);
+        KademliaClient targetClient = network.dummyHosts.get(target);
+//        System.out.println("target client ip: " + targetClient.getSelf().ip);
+        System.out.println(network.dummyHosts.size());
+
+        for(Map.Entry<Long, DataBlock> data: targetClient.getDataStore().entrySet()){
+            newClient.dummyStore(data.getKey(), data.getValue());
+            System.out.println(data.getKey());
+            System.out.println(data.getValue().sampleValue);
+        }
+
+        //check new join client data storage
+        System.out.println("checking new client data storage");
+        System.out.println("data in newClient after join is empty: " + newClient.getDataStore().isEmpty());
+
+        for(Map.Entry<Long, DataBlock> data: newClient.getDataStore().entrySet()){
+            var r = newClient.get(data.getKey());
+            System.out.println(r);
+        }
+
+    }
+
     public static void main(String[] args) {
 //        testRPC();
-        testRouteTree();
-        testJoin();
-        testLeave();
+//        testRouteTree();
+//        testJoin();
+//        testLeave();
+        testDataReplication();
     }
 }

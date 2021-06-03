@@ -54,6 +54,15 @@ public class KademliaClient implements Client {
 //        }
     }
 
+    public Map<Long, DataBlock> getDataStore(){
+        return this.dataStore;
+    }
+
+    //test only
+    public Host getSelf(){
+        return this.self;
+    }
+
     public void start(Host introducer) {
         if (introducer == null) {
             return;
@@ -259,6 +268,11 @@ public class KademliaClient implements Client {
     @Override
     public void store(long key, DataBlock data) {
         this.put(key, data);
+    }
+
+    //test only
+    public void dummyStore(long key, DataBlock data) {
+        this.dataStore.put(key, data);
     }
 
     @Override
