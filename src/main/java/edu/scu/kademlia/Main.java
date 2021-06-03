@@ -2,66 +2,96 @@ package edu.scu.kademlia;
 
 import lombok.RequiredArgsConstructor;
 
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.rmi.ConnectException;
 import java.util.*;
 
-// This is just a sample, it pretends to be several hosts
 @RequiredArgsConstructor
-class DummyRPC implements KademliaRPC {
-
+class DummyNetwork {
     final Map<Host, KademliaClient> dummyHosts = new HashMap<>();
     final int ksize;
 
     // This method is just for the dummy class to set up its hosts
     public KademliaClient addHost(Host host) {
-
-        KademliaClient client = new KademliaClient(3, host, this, ksize, false);
+        DummyRPC rpc = new DummyRPC(this, host);
+        KademliaClient client = new KademliaClient(4, host, rpc, ksize, false);
+        Host introducer = null;
+        if (!dummyHosts.isEmpty()) {
+            introducer = dummyHosts.keySet().stream().findFirst().get();
+        }
         dummyHosts.put(host, client);
 
-        // all trees have all nodes if needed
-        for (Host h : dummyHosts.keySet()) {
-            client.addHost(h);
-        }
-        for (KademliaClient t : dummyHosts.values()) {
-            t.addHost(host);
-        }
-
+        client.start(introducer);
         return client;
     }
 
-    @Override
-    public List<Host> findNode(Host host, long key) {
-        System.out.println("[Network] `findNode` to " + host.ip + " key " + key);
-        KademliaClient client = dummyHosts.get(host);
-        return client.nodeLookup(key);
+    public void removeHost(Host host) {
+        dummyHosts.remove(host);
     }
 
-    @Override
-    public HostSearchResult findValue(Host host, long key) {
-        System.out.println("[Network] `findValue` to " + host.ip + " key " + key);
-        KademliaClient client = dummyHosts.get(host);
-
-        if (client.hasData(key)) {
-            //noinspection OptionalGetWithoutIsPresent
-            return new HostSearchResult(client.get(key));
+    public List<Host> findNode(Host src, Host dest, long key, boolean isNew) {
+        System.out.println("[Network] `findNode` " + src.ip + " to " + dest.ip + " key " + key);
+        KademliaClient client = dummyHosts.get(dest);
+        List<Host> result = client.findNode(key);
+        client.addHost(src);
+        if (isNew) {
+            client.replicateClosest(src);
         }
-        return new HostSearchResult(client.getClosestHosts(key, ksize));
+        return result;
+    }
+
+    public HostSearchResult findValue(Host src, Host dest, long key) {
+        System.out.println("[Network] `findValue` " + src.ip + " to " + dest.ip + " key " + key);
+        KademliaClient client = dummyHosts.get(dest);
+        HostSearchResult result = client.findValue(key);
+        client.addHost(src);
+        return result;
+    }
+
+    public void store(Host src, Host dest, long key, DataBlock data) {
+        System.out.println("[Network] `store` " + src.ip + " to " + dest.ip + " key " + key);
+        KademliaClient client = dummyHosts.get(dest);
+        client.store(key, data);
+    }
+
+    public boolean ping(Host host) {
+        return dummyHosts.containsKey(host);
+    }
+}
+
+// This is just a sample, it pretends to be several hosts
+@RequiredArgsConstructor
+class DummyRPC implements KademliaRPC {
+
+    final DummyNetwork network;
+    final Host self;
+
+    @Override
+    public List<Host> findNode(Host host, long key, boolean isNew) throws ConnectException {
+        if (!network.ping(host)) {
+            throw new ConnectException("Host offline");
+        }
+        return network.findNode(self, host, key, isNew);
     }
 
     @Override
-    public void store(Host host, long key, DataBlock data) {
-        System.out.println("[Network] `store` to " + host.ip + " key " + key);
-        KademliaClient client = dummyHosts.get(host);
-        client.put(key, data);
+    public HostSearchResult findValue(Host host, long key) throws ConnectException {
+        if (!network.ping(host)) {
+            throw new ConnectException("Host offline");
+        }
+        return network.findValue(self, host, key);
     }
 
-    //dummy function for test purpose
+    @Override
+    public void store(Host host, long key, DataBlock data) throws ConnectException {
+        if (!network.ping(host)) {
+            throw new ConnectException("Host offline");
+        }
+        network.store(self, host, key, data);
+    }
+
     @Override
     public boolean ping(Host host) {
-        return true;
+        return network.ping(host);
 
 //        Random rand = new Random();
 //        int int_random = rand.nextInt(2);
@@ -75,208 +105,151 @@ class DummyRPC implements KademliaRPC {
 }
 
 public class Main {
-    final static int KSIZE = 1;
-
     public static void ASSERT(boolean bool) {
         if (!bool) {
             throw new AssertionError("Condition was false!");
         }
     }
 
-//    public static void testRouteTree() {
-//        System.out.println("TEST ROUTE TREE");
-//        DummyRPC rpc = new DummyRPC(KSIZE);
-//        Host self = new Host("ip111", 0b111, 8000);
-//        KademliaClient selfClient = rpc.addHost(self);
-//        rpc.addHost(new Host("ip000", 0b000, 8000));
-//        rpc.addHost(new Host("ip010", 0b010, 8000));
-//        rpc.addHost(new Host("ip110", 0b110, 8000));
-//
-//        selfClient.put(0b111, new DataBlock(1));
-//        selfClient.put(0b011, new DataBlock(5));
-//        var r1 = selfClient.get(0b111);
-//        var r2 = selfClient.get(0b011);
-//
-//        ASSERT(r1.get().sampleValue == 1);
-//        ASSERT(r2.get().sampleValue == 5);
-//    }
+    public static void testDataStore() {
+        System.out.println("TEST DATA STORE");
+        DummyNetwork network = new DummyNetwork(1);
+        Host host1 = new Host("ip111", 0b0111, 8000);
+        Host host2 = new Host("ip000", 0b0000, 8000);
+        Host host3 = new Host("ip010", 0b0010, 8000);
+        Host host4 = new Host("ip110", 0b0110, 8000);
+        KademliaClient client1 = network.addHost(host1);
+        KademliaClient client2 = network.addHost(host2);
+        KademliaClient client3 = network.addHost(host3);
+        KademliaClient client4 = network.addHost(host4);
 
-//    public static void testNewNodeJoining() {
-//        System.out.println("TEST NEW NODE JOINING");
-//        DummyRPC rpc = new DummyRPC(KSIZE);
-//        Host self = new Host("ip111", 0b111, 8000);
-//        KademliaClient selfClient = rpc.addHost(self);
-//        Host newHost1 = new Host("ip000", 0b000, 8000);
-//        Host newHost2 = new Host("ip001", 0b001, 8000);
-//        Host newHost3 = new Host("ip011", 0b011, 8000);
-//
-//        //test for exist node joining
-//        rpc.findNode(self, newHost1.getKey());
-//        rpc.findNode(self, newHost1.getKey());
-//
-//        //test for new node join when bucket not full
-//        rpc.findNode(self, newHost2.getKey());
-//
-//        //test for new node join when bucket full
-//        rpc.findNode(self, newHost3.getKey());
-//    }
+        System.out.println("NETWORK READY");
 
-//    public static void testBucketrefreshing() {
-//        System.out.println("TEST BUCKET REFRESHING");
-//        DummyRPC rpc = new DummyRPC(KSIZE);
-//        Host self = new Host("ip111", 0b111, 8000);
-//        KademliaClient selfClient = rpc.addHost(self);
-//        Host newHost1 = new Host("ip000", 0b000, 8000);
-//        Host newHost2 = new Host("ip001", 0b001, 8000);
-//        Host newHost3 = new Host("ip011", 0b011, 8000);
-//        Host newHost4 = new Host("ip011", 0b010, 8000);
-//
-//        //nodes joining the network
-//        rpc.findNode(self, newHost1.getKey());
-//        rpc.findNode(self, newHost2.getKey());
-//        rpc.findNode(self, newHost3.getKey());
-//        rpc.findNode(self, newHost4.getKey());
-//
-//        //test for bucket refreshing
-//        System.out.println("start refreshing");
-//        Set<Bucket> buckets = selfClient.getAllBuckets();
-//        for(Bucket b: buckets){
-////            System.out.println("bucketID: "+ b.getBucketID());
-//            b.refreshBucket();
-//        }
-//    }
-//
-//
-    public static void periodicallyKeyValueRestoring() {
-        System.out.println("TEST PERIODICALLY key-value RESTORING");
-        try {
-            final InetAddress inetAddress = InetAddress.getLocalHost();
-//            final String hostAddress = inetAddress.getHostAddress();
-            final String hostAddress = "192.158.1.38";
-            final String[] hostAddressParts = hostAddress.split("\\.");
-            long encodedHostAddress = 0;
-            for (int i = 0; i < 4; i++) {
-                encodedHostAddress |= Integer.parseInt(hostAddressParts[i]) << (48 - (8 * i));
-            }
+        client1.put(0b111, new DataBlock(1));
+        client1.put(0b010, new DataBlock(5));
 
-            int port1 = 8000;
-            final long encodedHostAddress1 = encodedHostAddress | (port1 << 16);
-            String key1 = Long.toBinaryString(encodedHostAddress1);
-            System.out.println(key1);
-
-            int port2 = 8001;
-            final long encodedHostAddress2 = encodedHostAddress | (port2 << 16);
-            String key2 = Long.toBinaryString(encodedHostAddress2);
-            System.out.println(key2);
-
-            Host self = new Host(hostAddress, encodedHostAddress1, port1);
-            Host host1 = new Host(hostAddress, encodedHostAddress2, port2);
-
-            KademliaRPC selfrpc = new KademliaRPCImpl();
-            KademliaRPC rpc1 = new KademliaRPCImpl();
-            int bitLen = 32;
-            KademliaClient selfClient = new KademliaClient(bitLen, self, selfrpc, KSIZE, true);
-            KademliaClient Client1 = new KademliaClient(bitLen, host1, rpc1, KSIZE, true);
-            selfClient.addHost(host1);
-
-            selfClient.put(3030, new DataBlock(3030));
-
-        //start time counting
-        long start = System.currentTimeMillis();
-
-        while (true) {
-            //calculate in sec
-            float timeElapse = (System.currentTimeMillis() - start) / 1000F;
-            //24 hour = 86400 sec, do key-pair republishing.
-            if (timeElapse > 86400) {
-                for (long key : selfClient.getDataStore().keySet()) {
-                    List<Host> hosts = selfClient.nodeLookup(key);
-                    for(Host h: hosts){
-                        selfrpc.store(h, key, selfClient.getDataStore().get(key));
-                    }
-                }
-//                break;
-                start = System.currentTimeMillis();
-            }
-        }
-
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
     }
 
-    public static void periodicallyBucketRefreshing() {
-        System.out.println("TEST PERIODICALLY BUCKET REFRESHING");
-        try {
-            final InetAddress inetAddress = InetAddress.getLocalHost();
-//            final String hostAddress = inetAddress.getHostAddress();
-            final String hostAddress = "192.158.1.38";
-            final String[] hostAddressParts = hostAddress.split("\\.");
-            long encodedHostAddress = 0;
-            for (int i = 0; i < 4; i++) {
-                encodedHostAddress |= Integer.parseInt(hostAddressParts[i]) << (48 - (8 * i));
-            }
-
-            int port1 = 8000;
-            final long encodedHostAddress1 = encodedHostAddress | (port1 << 16);
-            String key1 = Long.toBinaryString(encodedHostAddress1);
-            System.out.println(key1);
-
-            int port2 = 8001;
-            final long encodedHostAddress2 = encodedHostAddress | (port2 << 16);
-            String key2 = Long.toBinaryString(encodedHostAddress2);
-            System.out.println(key2);
-
-            int port3 = 8002;
-            final long encodedHostAddress3 = encodedHostAddress | (port3 << 16);
-            String key3 = Long.toBinaryString(encodedHostAddress3);
-            System.out.println(key3);
-
-            int port4 = 8003;
-            final long encodedHostAddress4 = encodedHostAddress | (port4 << 16);
-            String key4 = Long.toBinaryString(encodedHostAddress4);
-            System.out.println(key4);
-
-            Host self = new Host(hostAddress, encodedHostAddress1, port1);
-            Host host1 = new Host(hostAddress, encodedHostAddress2, port2);
-            Host host2 = new Host(hostAddress, encodedHostAddress3, port3);
-            Host host3 = new Host(hostAddress, encodedHostAddress4, port4);
-
-            KademliaRPC selfrpc = new KademliaRPCImpl();
-            int bitLen = 32;
-            KademliaClient selfClient = new KademliaClient(bitLen, self, selfrpc, KSIZE, true);
-            selfClient.addHost(host1);
-            selfClient.addHost(host2);
-            selfClient.addHost(host3);
-
-        //start time counting
-        long start = System.currentTimeMillis();
-
-        while (true) {
-            //calculate in sec
-            float timeElapse = (System.currentTimeMillis() - start) / 1000F;
-            //1 hour = 3600 sec, do bucket refreshing.
-            if (timeElapse > 3600) {
-                //remove left nodes
-                System.out.println("start bucket refreshing");
-                for (Bucket b : selfClient.getAllBuckets()) {
-                    b.refreshBucket();
-                }
-                //populate newly joined hosts into buckets
-                for (int i = 0; i < bitLen; i++) {
-                    long lowerBound = (long) Math.pow(2, i);
-                    long upperBound = (long) Math.pow(2, i + 1);
-                    long randomKey = lowerBound + (long) (Math.random() * (upperBound - lowerBound));
-                    selfrpc.findNode(self, randomKey);
-                }
-                start = System.currentTimeMillis();
-            }
-        }
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
+    public static void testJoin() {
+        System.out.println("TEST NODE JOIN");
+        DummyNetwork network = new DummyNetwork(1);
+        Host host1 = new Host("ip111", 0b0111, 8000);
+        Host host2 = new Host("ip000", 0b0000, 8000);
+        Host host3 = new Host("ip010", 0b0010, 8000);
+        Host host4 = new Host("ip110", 0b0110, 8000);
+        System.out.println("ADD " + host1.toString());
+        KademliaClient client1 = network.addHost(host1);
+        System.out.println("ADD " + host2.toString());
+        KademliaClient client2 = network.addHost(host2);
+        System.out.println("ADD " + host3.toString());
+        KademliaClient client3 = network.addHost(host3);
+        System.out.println("ADD " + host4.toString());
+        KademliaClient client4 = network.addHost(host4);
+        client1.printHosts();
+        client2.printHosts();
+        client3.printHosts();
+        client4.printHosts();
     }
 
+    public static void testLeave() {
+        System.out.println("TEST NODE LEAVE");
+        DummyNetwork network = new DummyNetwork(3);
+        Host host1 = new Host("ip0000", 0b0000, 8000);
+        Host host2 = new Host("ip0001", 0b0001, 8000);
+        Host host3 = new Host("ip1000", 0b1000, 8000);
+        Host host4 = new Host("ip1100", 0b1100, 8000);
+        Host host5 = new Host("ip1010", 0b1010, 8000);
+        KademliaClient client1 = network.addHost(host1);
+        KademliaClient client2 = network.addHost(host2);
+        KademliaClient client3 = network.addHost(host3);
+        KademliaClient client4 = network.addHost(host4);
+        KademliaClient client5 = network.addHost(host5);
+
+        System.out.println("SETUP");
+
+        client1.put(0b1100, new DataBlock(10));
+        client1.put(0b0001, new DataBlock(15));
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
+        System.out.println("Get 0b1100: " + client1.get(0b1100));
+        network.removeHost(host4);
+        System.out.println("Get 0b1100: " + client1.get(0b1100));
+
+    }
+
+    public static void testRepublish() {
+        System.out.println("TEST NODE LEAVE");
+        DummyNetwork network = new DummyNetwork(3);
+        Host host1 = new Host("ip0000", 0b0000, 8000);
+        Host host2 = new Host("ip0001", 0b0001, 8000);
+        Host host3 = new Host("ip1000", 0b1000, 8000);
+        Host host4 = new Host("ip1100", 0b1100, 8000);
+        Host host5 = new Host("ip1010", 0b1010, 8000);
+        KademliaClient client1 = network.addHost(host1);
+        KademliaClient client2 = network.addHost(host2);
+        KademliaClient client3 = network.addHost(host3);
+        KademliaClient client4 = network.addHost(host4);
+        KademliaClient client5 = network.addHost(host5);
+
+        System.out.println("SETUP");
+
+        long testKey = 0b1010;
+        client5.store(testKey, new DataBlock(25));
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
+        client5.republish();
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
+        client5.republish();
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
+
+    }
+
+    public static void testJoinReplication() {
+        System.out.println("TEST NODE JOIN REPLICATION");
+        DummyNetwork network = new DummyNetwork(3);
+        Host host1 = new Host("ip0000", 0b0000, 8000);
+        Host host2 = new Host("ip0001", 0b0001, 8000);
+        Host host3 = new Host("ip1000", 0b1000, 8000);
+        Host host4 = new Host("ip1100", 0b1100, 8000);
+        Host host5 = new Host("ip1010", 0b1010, 8000);
+        KademliaClient client1 = network.addHost(host1);
+        KademliaClient client2 = network.addHost(host2);
+        KademliaClient client3 = network.addHost(host3);
+
+        System.out.println("SETUP");
+        client3.store(0b1010, new DataBlock(30));
+        client3.store(0b1100, new DataBlock(32));
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+
+        KademliaClient client4 = network.addHost(host4);
+        KademliaClient client5 = network.addHost(host5);
+        client1.printDataStore();
+        client2.printDataStore();
+        client3.printDataStore();
+        client4.printDataStore();
+        client5.printDataStore();
+
+    }
 
     private static void testRPC() {
         try {
@@ -327,75 +300,13 @@ public class Main {
         }
     }
 
-    private static void testNodeJoining() {
-        try {
-            final InetAddress inetAddress = InetAddress.getLocalHost();
-//            final String hostAddress = inetAddress.getHostAddress();
-            final String hostAddress = "192.158.1.38";
-            final String[] hostAddressParts = hostAddress.split("\\.");
-            long encodedHostAddress = 0;
-            for (int i = 0; i < 4; i++) {
-                encodedHostAddress |= Integer.parseInt(hostAddressParts[i]) << (48 - (8 * i));
-            }
-
-            int port1 = 8000;
-            final long encodedHostAddress1 = encodedHostAddress | (port1 << 16);
-            String key1 = Long.toBinaryString(encodedHostAddress1);
-            System.out.println(key1);
-
-            int port2 = 8001;
-            final long encodedHostAddress2 = encodedHostAddress | (port2 << 16);
-            String key2 = Long.toBinaryString(encodedHostAddress2);
-            System.out.println(key2);
-
-            int port3 = 8002;
-            final long encodedHostAddress3 = encodedHostAddress | (port3 << 16);
-            String key3 = Long.toBinaryString(encodedHostAddress3);
-            System.out.println(key3);
-
-            Host self = new Host(hostAddress, encodedHostAddress1, port1);
-            Host newhost1 = new Host(hostAddress, encodedHostAddress2, port2);
-            Host newhost2 = new Host(hostAddress, encodedHostAddress3, port3);
-
-            KademliaRPC selfrpc = new KademliaRPCImpl();
-            KademliaRPC rpc1 = new KademliaRPCImpl();
-            KademliaRPC rpc2 = new KademliaRPCImpl();
-
-            KademliaClient selfClient = new KademliaClient(32, self, selfrpc, KSIZE, true);
-            KademliaClient newClient1 = new KademliaClient(32, newhost1, rpc1, KSIZE, true);
-            KademliaClient newClient2 = new KademliaClient(32, newhost2, rpc2, KSIZE, true);
-
-            selfClient.addHost(newhost1);
-            newClient1.addHost(self);
-            System.out.println("self: "+ self + " "+selfClient.allHosts());
-            System.out.println("new1: "+ newClient1.allHosts());
-            System.out.println("new2: "+ newClient2.allHosts());
-
-            // NN(new node) sends a LookupRequest(A.NodeId) to BN(bootstrap node, self). A Lookup Request basically asks the receiving node for the K-Closest nodes it knows to a given NodeId.
-            // In this case, BN will return the K-Closest nodes it knows to NN.
-            List<Host> closerNodes = rpc2.findNode(self, newhost2.getKey());
-            // BN will now add NN to it's routing table, so NN is now in the network.
-            selfClient.addHost(newhost2);
-            // NN receives the list of K-Closest nodes to itself from BN. NN adds BN to it's routing table.
-            newClient2.addHost(self);
-            // NN now pings these K nodes received from BN, and the ones that reply are added to it's Routing Table in the necessary buckets based on distance. By pinging these nodes, they also learn of NN existence and add NN to their Routing tables.
-            for(Host h: closerNodes){
-                if(rpc2.ping(h)){
-                    newClient2.addHost(h);
-                }
-            }
-            // NN is now connected to the network and is known by nodes on the network.
-
-            System.out.println("self: "+ selfClient.allHosts());
-            System.out.println("new1: "+newClient1.allHosts());
-            System.out.println("new2: "+newClient2.allHosts());
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     public static void main(String[] args) {
-    testRPC();
+//        testRPC();
+//        testDataStore();
+//        testJoin();
+//        testLeave();
+//        testRepublish();
+        testJoinReplication();
     }
 }

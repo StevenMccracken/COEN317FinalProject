@@ -21,7 +21,7 @@ public final class KademliaRPCImpl implements KademliaRPC {
     }
 
     @Override
-    public List<Host> findNode(Host host, long key) {
+    public List<Host> findNode(Host host, long key, boolean isNew) {
         System.out.println("Sending remote findNode");
         try {
             return getStub(host).findNode(key);

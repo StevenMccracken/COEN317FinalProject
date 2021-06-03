@@ -27,6 +27,10 @@ public class Bucket {
         this.rpc = rpc;
     }
 
+    public void removeHost(Host host) {
+        nodesInBucket.remove(host);
+    }
+
     /**
      * move a node to the tail of its bucket
      */
@@ -69,7 +73,6 @@ public class Bucket {
 //            System.out.println("case 2: before size: "+nodesInBucket.size()); //for test only
             moveToLast(host);
 //            System.out.println("case 2: after size: "+nodesInBucket.size()); //for test only
-            System.out.println("same node moved to last");
             return true;
         }
 
@@ -102,12 +105,9 @@ public class Bucket {
     /**
      * update the network by refresh the k-buckets
      */
-    public void refreshBucket(){
+    public void refreshBucket() {
         //step 1: rule out not respond hosts in the bucket
-        System.out.println("start step1");
-        System.out.println("step1: before nodesinbucket size: " + nodesInBucket.size()); //for test only
         nodesInBucket.removeIf(curHost-> !rpc.ping(curHost));
-        System.out.println("step1: after nodesinbucket size: " + nodesInBucket.size()); //for test only
 
 //        //Step2: refill nodes(from backup) to the bucket
 //        System.out.println("start step2");

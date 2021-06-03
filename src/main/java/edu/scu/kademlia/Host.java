@@ -45,4 +45,11 @@ public class Host implements Serializable {
     public int hashCode() {
         return (int)this.key;
     }
+
+    @Override
+    public String toString() {
+        return "Host{" +
+                "ip='" + ip + '\'' +
+                '}';
+    }
 }
